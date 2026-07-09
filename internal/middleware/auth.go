@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"context"
-	"net/http"
 	"strings"
+
+	"github.com/gofiber/fiber/v2"
 
 	"starehian-society-platform/internal/tokens"
 	"starehian-society-platform/pkg/logger"
@@ -22,77 +23,78 @@ func NewAuthMiddleware(jwtService *tokens.JWTService, logger *logger.Logger) *Au
 }
 
 // Authenticate validates the JWT token and adds user context
-func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get token from Authorization header
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Authorization header required", http.StatusUnauthorized)
-			return
-		}
+func (m *AuthMiddleware) Authenticate(c *fiber.Ctx) error {
+	// Get token from Authorization header
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Authorization header required",
+		})
+	}
 
-		// Extract Bearer token
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
-			return
-		}
+	// Extract Bearer token
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid authorization header format",
+		})
+	}
 
-		token := parts[1]
+	token := parts[1]
 
-		// Validate token
-		claims, err := m.jwtService.ValidateAccessToken(token)
-		if err != nil {
-			m.logger.Errorf("Failed to validate token: %v", err)
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
-			return
-		}
+	// Validate token
+	claims, err := m.jwtService.ValidateAccessToken(token)
+	if err != nil {
+		m.logger.Errorf("Failed to validate token: %v", err)
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid token",
+		})
+	}
 
-		// Add user context
-		ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
-		ctx = context.WithValue(ctx, "user_role", claims.Role)
+	// Add user context to Fiber context
+	c.Locals("user_id", claims.UserID)
+	c.Locals("user_role", claims.Role)
 
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	return c.Next()
 }
 
 // RequireRole checks if the user has the required role
-func (m *AuthMiddleware) RequireRole(role string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userRole := r.Context().Value("user_role")
-			if userRole == nil {
-				http.Error(w, "User role not found in context", http.StatusUnauthorized)
-				return
-			}
+func (m *AuthMiddleware) RequireRole(role string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		userRole := c.Locals("user_role")
+		if userRole == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "User role not found in context",
+			})
+		}
 
-			if userRole.(string) != role {
-				http.Error(w, "Insufficient permissions", http.StatusForbidden)
-				return
-			}
+		if userRole.(string) != role {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Insufficient permissions",
+			})
+		}
 
-			next.ServeHTTP(w, r)
-		})
+		return c.Next()
 	}
 }
 
 // RequireAdmin checks if the user has any admin role
-func (m *AuthMiddleware) RequireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userRole := r.Context().Value("user_role")
-		if userRole == nil {
-			http.Error(w, "User role not found in context", http.StatusUnauthorized)
-			return
-		}
+func (m *AuthMiddleware) RequireAdmin(c *fiber.Ctx) error {
+	userRole := c.Locals("user_role")
+	if userRole == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "User role not found in context",
+		})
+	}
 
-		role := userRole.(string)
-		if role != "super_admin" && role != "moderator" && role != "support" {
-			http.Error(w, "Admin access required", http.StatusForbidden)
-			return
-		}
+	role := userRole.(string)
+	if role != "super_admin" && role != "moderator" && role != "support" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Admin access required",
+		})
+	}
 
-		next.ServeHTTP(w, r)
-	})
+	return c.Next()
 }
 
 // GetUserID extracts user ID from context

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -113,7 +114,8 @@ func (s *BroadcastService) getTargetUsers(ctx context.Context, targetType, targe
 
 	case "class_year":
 		// Get users by class year
-		profiles, err := s.profileRepo.Search(ctx, "", &targetValue, "", "", "", 10000, 0)
+		classYear, _ := strconv.Atoi(targetValue)
+		profiles, err := s.profileRepo.Search(ctx, "", &classYear, "", "", "", 10000, 0)
 		if err != nil {
 			return nil, err
 		}

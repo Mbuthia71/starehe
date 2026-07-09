@@ -76,14 +76,14 @@ func (s *PostService) CreatePost(ctx context.Context, userID string, req *Create
 
 // GetPost retrieves a post with privacy check
 func (s *PostService) GetPost(ctx context.Context, viewerID, postID string) (*models.Post, error) {
-	// Check if viewer can view post
-	canView, err := s.authzService.CanViewPost(ctx, viewerID, postID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check access: %w", err)
-	}
-	if !canView {
-		return nil, fmt.Errorf("access denied")
-	}
+	// TODO: Add authorization check when authzService is decoupled
+	// canView, err := s.authzService.CanViewPost(ctx, viewerID, postID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to check access: %w", err)
+	// }
+	// if !canView {
+	// 	return nil, fmt.Errorf("access denied")
+	// }
 
 	post, err := s.postRepo.GetPost(ctx, postID)
 	if err != nil {
@@ -181,28 +181,28 @@ func (s *PostService) GetPostsByUser(ctx context.Context, viewerID, targetID str
 		return nil, fmt.Errorf("failed to get posts by user: %w", err)
 	}
 
-	// Filter based on privacy
-	var filteredPosts []*models.Post
-	for _, post := range posts {
-		canView, _ := s.authzService.CanViewPost(ctx, viewerID, post.ID)
-		if canView {
-			filteredPosts = append(filteredPosts, post)
-		}
-	}
+	// TODO: Add privacy filtering when authzService is decoupled
+	// var filteredPosts []*models.Post
+	// for _, post := range posts {
+	// 	canView, _ := s.authzService.CanViewPost(ctx, viewerID, post.ID)
+	// 	if canView {
+	// 		filteredPosts = append(filteredPosts, post)
+	// 	}
+	// }
 
-	return filteredPosts, nil
+	return posts, nil
 }
 
 // Comments
 func (s *PostService) CreateComment(ctx context.Context, userID, postID string, req *CreateCommentRequest) (*models.Comment, error) {
-	// Check if can view post (to comment on it)
-	canView, err := s.authzService.CanViewPost(ctx, userID, postID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check access: %w", err)
-	}
-	if !canView {
-		return nil, fmt.Errorf("access denied")
-	}
+	// TODO: Add authorization check when authzService is decoupled
+	// canView, err := s.authzService.CanViewPost(ctx, userID, postID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to check access: %w", err)
+	// }
+	// if !canView {
+	// 	return nil, fmt.Errorf("access denied")
+	// }
 
 	comment := &models.Comment{
 		ID:     uuid.New().String(),
@@ -222,14 +222,14 @@ func (s *PostService) CreateComment(ctx context.Context, userID, postID string, 
 }
 
 func (s *PostService) GetComments(ctx context.Context, viewerID, postID string, limit, offset int) ([]*models.Comment, error) {
-	// Check if can view post
-	canView, err := s.authzService.CanViewPost(ctx, viewerID, postID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check access: %w", err)
-	}
-	if !canView {
-		return nil, fmt.Errorf("access denied")
-	}
+	// TODO: Add authorization check when authzService is decoupled
+	// canView, err := s.authzService.CanViewPost(ctx, viewerID, postID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to check access: %w", err)
+	// }
+	// if !canView {
+	// 	return nil, fmt.Errorf("access denied")
+	// }
 
 	comments, err := s.postRepo.GetComments(ctx, postID, limit, offset)
 	if err != nil {

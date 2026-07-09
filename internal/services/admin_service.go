@@ -74,7 +74,7 @@ func (s *AdminService) CreateReport(ctx context.Context, reporterID string, req 
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
 		Reason:     req.Reason,
-		Status:     models.ReportStatusPending,
+		Status:     string(models.ReportStatusPending),
 	}
 
 	err := s.adminRepo.CreateReport(ctx, report)

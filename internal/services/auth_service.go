@@ -27,6 +27,7 @@ type AuthService struct {
 type SignupRequest struct {
 	Phone    string `json:"phone"`
 	FullName string `json:"full_name"`
+	OTP      string `json:"otp"`
 }
 
 type VerifyOTPRequest struct {

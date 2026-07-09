@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: starehian-postgres
+    environment:
+      POSTGRES_DB: starehian_db
+      POSTGRES_USER: starehian_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U starehian_user -d starehian_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: starehian-redis
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
+  centrifugo:
+    image: centrifugo/centrifugo:v4
+    container_name: starehian-centrifugo
+    command: centrifugo --config=/etc/centrifugo/config.json
+    volumes:
+      - ./configs/centrifugo.json:/etc/centrifugo/config.json
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: starehian-api
+    environment:
+      DATABASE_URL: postgres://starehian_user:${POSTGRES_PASSWORD:-changeme}@postgres:5432/starehian_db?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-changeme}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-changeme}
+      AFRICAS_TALKING_API_KEY: ${AFRICAS_TALKING_API_KEY}
+      AFRICAS_TALKING_USERNAME: ${AFRICAS_TALKING_USERNAME}
+      CLOUDFLARE_R2_ACCESS_KEY: ${CLOUDFLARE_R2_ACCESS_KEY}
+      CLOUDFLARE_R2_SECRET_KEY: ${CLOUDFLARE_R2_SECRET_KEY}
+      CLOUDFLARE_R2_BUCKET: ${CLOUDFLARE_R2_BUCKET}
+      CLOUDFLARE_R2_ENDPOINT: ${CLOUDFLARE_R2_ENDPOINT}
+      FCM_SERVER_KEY: ${FCM_SERVER_KEY}
+      ENVIRONMENT: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      centrifugo:
+        condition: service_healthy
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: starehian-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./configs/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: starehian-promtail
+    volumes:
+      - ./configs/promtail-config.yaml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: starehian-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - loki
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
+  backup:
+    image: postgres:16-alpine
+    container_name: starehian-backup
+    environment:
+      POSTGRES_DB: starehian_db
+      POSTGRES_USER: starehian_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_HOST: postgres
+      R2_ACCESS_KEY: ${CLOUDFLARE_R2_ACCESS_KEY}
+      R2_SECRET_KEY: ${CLOUDFLARE_R2_SECRET_KEY}
+      R2_BUCKET: ${CLOUDFLARE_R2_BUCKET}
+      R2_ENDPOINT: ${CLOUDFLARE_R2_ENDPOINT}
+    volumes:
+      - ./scripts/backup.sh:/backup.sh
+      - backup_data:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - starehian-network
+    restart: "no"
+
+volumes:
+  postgres_data:
+  redis_data:
+  loki_data:
+  grafana_data:
+  backup_data:
+
+networks:
+  starehian-network:
+    driver: bridge

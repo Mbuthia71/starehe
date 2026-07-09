@@ -1,0 +1,32 @@
+{
+  "v3_use_offset": true,
+  "token_hmac_secret_key": "${CENTRIFUGO_SECRET:-changeme}",
+  "api_key": "${CENTRIFUGO_API_KEY:-changeme}",
+  "admin_password": "${CENTRIFUGO_ADMIN_PASSWORD:-changeme}",
+  "admin_secret": "${CENTRIFUGO_ADMIN_SECRET:-changeme}",
+  "namespaces": [
+    {
+      "name": "chat",
+      "publish": true,
+      "subscribe_to_publish": true,
+      "cache_ttl": "10s",
+      "max_emulation_lag": "5s"
+    },
+    {
+      "name": "presence",
+      "publish": false,
+      "subscribe_to_publish": false,
+      "cache_ttl": "30s"
+    },
+    {
+      "name": "notifications",
+      "publish": true,
+      "subscribe_to_publish": false,
+      "cache_ttl": "60s"
+    }
+  ],
+  "redis": true,
+  "redis_address": "redis:6379",
+  "redis_db": 0,
+  "redis_prefix": "centrifugo"
+}

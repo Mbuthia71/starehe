@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"starehian-society-platform/internal/middleware"
 	"starehian-society-platform/internal/models"
 	"starehian-society-platform/internal/repository"
 	"starehian-society-platform/pkg/logger"
@@ -15,7 +14,6 @@ import (
 type ConnectionService struct {
 	connectionRepo *repository.ConnectionRepository
 	userRepo       *repository.UserRepository
-	authzService   *middleware.AuthorizationService
 	logger         *logger.Logger
 }
 
@@ -30,13 +28,11 @@ type UpdateConnectionRequest struct {
 func NewConnectionService(
 	connectionRepo *repository.ConnectionRepository,
 	userRepo *repository.UserRepository,
-	authzService *middleware.AuthorizationService,
 	logger *logger.Logger,
 ) *ConnectionService {
 	return &ConnectionService{
 		connectionRepo: connectionRepo,
 		userRepo:       userRepo,
-		authzService:   authzService,
 		logger:         logger,
 	}
 }

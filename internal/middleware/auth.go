@@ -5,16 +5,16 @@ import (
 	"net/http"
 	"strings"
 
-	"starehian-society-platform/internal/auth"
+	"starehian-society-platform/internal/tokens"
 	"starehian-society-platform/pkg/logger"
 )
 
 type AuthMiddleware struct {
-	jwtService *auth.JWTService
+	jwtService *tokens.JWTService
 	logger     *logger.Logger
 }
 
-func NewAuthMiddleware(jwtService *auth.JWTService, logger *logger.Logger) *AuthMiddleware {
+func NewAuthMiddleware(jwtService *tokens.JWTService, logger *logger.Logger) *AuthMiddleware {
 	return &AuthMiddleware{
 		jwtService: jwtService,
 		logger:     logger,

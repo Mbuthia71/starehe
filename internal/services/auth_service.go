@@ -8,9 +8,9 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"starehian-society-platform/internal/auth"
 	"starehian-society-platform/internal/models"
 	"starehian-society-platform/internal/repository"
+	"starehian-society-platform/internal/tokens"
 	"starehian-society-platform/pkg/logger"
 	"starehian-society-platform/pkg/redis"
 )
@@ -19,8 +19,8 @@ type AuthService struct {
 	userRepo    *repository.UserRepository
 	profileRepo *repository.ProfileRepository
 	redis       *redis.Redis
-	jwtService  *auth.JWTService
-	otpService  *auth.OTPService
+	jwtService  *tokens.JWTService
+	otpService  *tokens.OTPService
 	logger      *logger.Logger
 }
 
@@ -42,7 +42,7 @@ type LoginRequest struct {
 type AuthResponse struct {
 	User        *models.User         `json:"user"`
 	Profile     *models.Profile      `json:"profile,omitempty"`
-	TokenPair   *auth.TokenPair      `json:"tokens"`
+	TokenPair   *tokens.TokenPair    `json:"tokens"`
 	IsNewUser   bool                 `json:"is_new_user"`
 }
 
@@ -50,8 +50,8 @@ func NewAuthService(
 	userRepo *repository.UserRepository,
 	profileRepo *repository.ProfileRepository,
 	redis *redis.Redis,
-	jwtService *auth.JWTService,
-	otpService *auth.OTPService,
+	jwtService *tokens.JWTService,
+	otpService *tokens.OTPService,
 	logger *logger.Logger,
 ) *AuthService {
 	return &AuthService{
@@ -215,7 +215,7 @@ func (s *AuthService) LoginWithOTP(ctx context.Context, req *LoginRequest, ip st
 }
 
 // RefreshToken refreshes an access token using a refresh token
-func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*auth.TokenPair, error) {
+func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*tokens.TokenPair, error) {
 	// Validate refresh token
 	claims, err := s.jwtService.ValidateRefreshToken(refreshToken)
 	if err != nil {

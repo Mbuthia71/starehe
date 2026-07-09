@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"starehian-society-platform/internal/middleware"
 	"starehian-society-platform/internal/models"
 	"starehian-society-platform/internal/repository"
 	"starehian-society-platform/pkg/logger"
@@ -14,7 +13,6 @@ import (
 
 type PostService struct {
 	postRepo    *repository.PostRepository
-	authzService *middleware.AuthorizationService
 	logger      *logger.Logger
 }
 
@@ -40,12 +38,10 @@ type CreateReactionRequest struct {
 
 func NewPostService(
 	postRepo *repository.PostRepository,
-	authzService *middleware.AuthorizationService,
 	logger *logger.Logger,
 ) *PostService {
 	return &PostService{
 		postRepo:    postRepo,
-		authzService: authzService,
 		logger:      logger,
 	}
 }

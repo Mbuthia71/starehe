@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"starehian-society-platform/internal/middleware"
 	"starehian-society-platform/internal/models"
 	"starehian-society-platform/internal/repository"
 	"starehian-society-platform/pkg/logger"
@@ -13,7 +12,6 @@ import (
 type ProfileService struct {
 	profileRepo      *repository.ProfileRepository
 	userRepo         *repository.UserRepository
-	authzService     *middleware.AuthorizationService
 	logger           *logger.Logger
 }
 
@@ -44,13 +42,11 @@ type SearchProfilesRequest struct {
 func NewProfileService(
 	profileRepo *repository.ProfileRepository,
 	userRepo *repository.UserRepository,
-	authzService *middleware.AuthorizationService,
 	logger *logger.Logger,
 ) *ProfileService {
 	return &ProfileService{
 		profileRepo:  profileRepo,
 		userRepo:     userRepo,
-		authzService: authzService,
 		logger:       logger,
 	}
 }

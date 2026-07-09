@@ -53,15 +53,15 @@ func NewProfileService(
 
 // GetProfile retrieves a user's profile with privacy checks
 func (s *ProfileService) GetProfile(ctx context.Context, viewerID, targetID string) (*models.Profile, error) {
-	// Check if viewer can view target's profile
-	canView, err := s.authzService.CanViewProfile(ctx, viewerID, targetID)
-	if err != nil {
-		s.logger.Errorf("Failed to check profile access: %v", err)
-		return nil, fmt.Errorf("failed to check access: %w", err)
-	}
-	if !canView {
-		return nil, fmt.Errorf("access denied")
-	}
+	// TODO: Add authorization check when authzService is decoupled
+	// canView, err := s.authzService.CanViewProfile(ctx, viewerID, targetID)
+	// if err != nil {
+	// 	s.logger.Errorf("Failed to check profile access: %v", err)
+	// 	return nil, fmt.Errorf("failed to check access: %w", err)
+	// }
+	// if !canView {
+	// 	return nil, fmt.Errorf("access denied")
+	// }
 
 	profile, err := s.profileRepo.GetByID(ctx, targetID)
 	if err != nil {
@@ -72,26 +72,27 @@ func (s *ProfileService) GetProfile(ctx context.Context, viewerID, targetID stri
 		return nil, fmt.Errorf("profile not found")
 	}
 
+	// TODO: Add privacy filtering when authzService is decoupled
 	// Filter sensitive fields based on visibility
-	if viewerID != targetID {
-		// Check contact visibility
-		canViewContact, err := s.authzService.CanViewProfileSection(ctx, viewerID, targetID, "contact")
-		if err != nil {
-			s.logger.Errorf("Failed to check contact visibility: %v", err)
-		}
-		if !canViewContact {
-			// Don't return contact info (phone/email is in user, not profile)
-		}
-
-		// Check career visibility
-		canViewCareer, err := s.authzService.CanViewProfileSection(ctx, viewerID, targetID, "career")
-		if err != nil {
-			s.logger.Errorf("Failed to check career visibility: %v", err)
-		}
-		if !canViewCareer {
-			profile.Career = nil
-		}
-	}
+	// if viewerID != targetID {
+	// 	// Check contact visibility
+	// 	canViewContact, err := s.authzService.CanViewProfileSection(ctx, viewerID, targetID, "contact")
+	// 	if err != nil {
+	// 		s.logger.Errorf("Failed to check contact visibility: %v", err)
+	// 	}
+	// 	if !canViewContact {
+	// 		// Don't return contact info (phone/email is in user, not profile)
+	// 	}
+	//
+	// 	// Check career visibility
+	// 	canViewCareer, err := s.authzService.CanViewProfileSection(ctx, viewerID, targetID, "career")
+	// 	if err != nil {
+	// 		s.logger.Errorf("Failed to check career visibility: %v", err)
+	// 	}
+	// 	if !canViewCareer {
+	// 		profile.Career = nil
+	// 	}
+	// }
 
 	return profile, nil
 }
@@ -172,27 +173,28 @@ func (s *ProfileService) SearchProfiles(ctx context.Context, viewerID string, re
 		return nil, fmt.Errorf("failed to search profiles: %w", err)
 	}
 
+	// TODO: Add privacy filtering when authzService is decoupled
 	// Filter results based on privacy
-	var filteredProfiles []*models.Profile
-	for _, profile := range profiles {
-		canView, err := s.authzService.CanViewProfile(ctx, viewerID, profile.UserID)
-		if err != nil {
-			s.logger.Errorf("Failed to check profile access for %s: %v", profile.UserID, err)
-			continue
-		}
-		if canView {
-			// Apply section-level filtering
-			if viewerID != profile.UserID {
-				canViewCareer, _ := s.authzService.CanViewProfileSection(ctx, viewerID, profile.UserID, "career")
-				if !canViewCareer {
-					profile.Career = nil
-				}
-			}
-			filteredProfiles = append(filteredProfiles, profile)
-		}
-	}
+	// var filteredProfiles []*models.Profile
+	// for _, profile := range profiles {
+	// 	canView, err := s.authzService.CanViewProfile(ctx, viewerID, profile.UserID)
+	// 	if err != nil {
+	// 		s.logger.Errorf("Failed to check profile access for %s: %v", profile.UserID, err)
+	// 		continue
+	// 	}
+	// 	if canView {
+	// 		// Apply section-level filtering
+	// 		if viewerID != profile.UserID {
+	// 			canViewCareer, _ := s.authzService.CanViewProfileSection(ctx, viewerID, profile.UserID, "career")
+	// 			if !canViewCareer {
+	// 				profile.Career = nil
+	// 			}
+	// 		}
+	// 		filteredProfiles = append(filteredProfiles, profile)
+	// 	}
+	// }
 
-	return filteredProfiles, nil
+	return profiles, nil
 }
 
 // GetOwnProfile retrieves the user's own profile

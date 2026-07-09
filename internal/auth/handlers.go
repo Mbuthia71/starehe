@@ -1,12 +1,12 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 
-	"starehian-society-platform/internal/middleware"
 	"starehian-society-platform/internal/services"
 	"starehian-society-platform/pkg/ratelimit"
 )
@@ -209,7 +209,7 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 
 // GetMe returns the current user's info
 func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
-	userID := middleware.GetUserID(c.Context())
+	userID := getUserID(c.Context())
 	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -225,7 +225,7 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 
 // SetPassword sets a password for a user (admin only)
 func (h *AuthHandler) SetPassword(c *fiber.Ctx) error {
-	userID := middleware.GetUserID(c.Context())
+	userID := getUserID(c.Context())
 	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -281,4 +281,12 @@ func parseJSONBody(c *fiber.Ctx, v interface{}) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Empty request body")
 	}
 	return json.Unmarshal(body, v)
+}
+
+// Helper function to get user ID from context
+func getUserID(ctx context.Context) string {
+	if userID, ok := ctx.Value("user_id").(string); ok {
+		return userID
+	}
+	return ""
 }

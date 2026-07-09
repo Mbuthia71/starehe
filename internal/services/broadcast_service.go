@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"starehian-society-platform/internal/chat"
 	"starehian-society-platform/internal/models"
 	"starehian-society-platform/internal/repository"
 	"starehian-society-platform/pkg/logger"
@@ -16,7 +15,6 @@ import (
 type BroadcastService struct {
 	userRepo     *repository.UserRepository
 	profileRepo  *repository.ProfileRepository
-	centrifugo   *chat.CentrifugoClient
 	notificationRepo *repository.NotificationRepository
 	logger       *logger.Logger
 }
@@ -42,14 +40,12 @@ type Broadcast struct {
 func NewBroadcastService(
 	userRepo *repository.UserRepository,
 	profileRepo *repository.ProfileRepository,
-	centrifugo *chat.CentrifugoClient,
 	notificationRepo *repository.NotificationRepository,
 	logger *logger.Logger,
 ) *BroadcastService {
 	return &BroadcastService{
 		userRepo:         userRepo,
 		profileRepo:      profileRepo,
-		centrifugo:      centrifugo,
 		notificationRepo: notificationRepo,
 		logger:          logger,
 	}
@@ -66,25 +62,6 @@ func (s *BroadcastService) SendBroadcast(ctx context.Context, req *BroadcastRequ
 
 	if len(userIDs) == 0 {
 		return nil, fmt.Errorf("no target users found")
-	}
-
-	// Create broadcast data
-	broadcastData := map[string]interface{}{
-		"type":    "broadcast",
-		"title":   req.Title,
-		"message": req.Message,
-	}
-
-	// Send via Centrifugo to all users
-	channels := make([]string, len(userIDs))
-	for i, userID := range userIDs {
-		channels[i] = fmt.Sprintf("notifications:%s", userID)
-	}
-
-	err = s.centrifugo.Broadcast(ctx, channels, broadcastData)
-	if err != nil {
-		s.logger.Errorf("Failed to send broadcast via Centrifugo: %v", err)
-		return nil, fmt.Errorf("failed to send broadcast: %w", err)
 	}
 
 	// Create notifications for all users

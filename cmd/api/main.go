@@ -1,13 +1,12 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	fiberLogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"starehian-society-platform/internal/admin"
@@ -20,6 +19,7 @@ import (
 	"starehian-society-platform/internal/profiles"
 	"starehian-society-platform/internal/repository"
 	"starehian-society-platform/internal/services"
+	"starehian-society-platform/internal/tokens"
 	"starehian-society-platform/pkg/config"
 	"starehian-society-platform/pkg/database"
 	"starehian-society-platform/pkg/logger"
@@ -56,13 +56,13 @@ func main() {
 	rateLimiter := ratelimit.NewRateLimiter(redisClient)
 
 	// Initialize JWT service
-	jwtService := auth.NewJWTService(&cfg.JWT)
+	jwtService := tokens.NewJWTService(&cfg.JWT)
 
 	// Initialize Africa's Talking service
-	atService := auth.NewAfricasTalkingService(&cfg.AfricasTalking)
+	atService := tokens.NewAfricasTalkingService(&cfg.AfricasTalking)
 
 	// Initialize OTP service
-	otpService := auth.NewOTPService(redisClient, rateLimiter, atService, appLogger)
+	otpService := tokens.NewOTPService(redisClient, rateLimiter, atService, appLogger)
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
@@ -78,14 +78,13 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, profileRepo, redisClient, jwtService, otpService, appLogger)
-	profileService := services.NewProfileService(profileRepo, userRepo, authzService, appLogger)
+	profileService := services.NewProfileService(profileRepo, userRepo, appLogger)
 	adminService := services.NewAdminService(userRepo, adminRepo, appLogger)
-	connectionService := services.NewConnectionService(connectionRepo, userRepo, authzService, appLogger)
-	postService := services.NewPostService(postRepo, authzService, appLogger)
-	chatService := services.NewChatService(chatRepo, connectionRepo, nil, redisClient, authzService, appLogger)
+	connectionService := services.NewConnectionService(connectionRepo, userRepo, appLogger)
+	postService := services.NewPostService(postRepo, appLogger)
+	chatService := services.NewChatService(chatRepo, connectionRepo, redisClient, appLogger)
 	analyticsService := services.NewAnalyticsService(db, appLogger)
-	broadcastService := services.NewBroadcastService(userRepo, profileRepo, nil, notificationRepo, appLogger)
-	bulkService := services.NewBulkOperationService(userRepo, adminRepo, appLogger)
+	broadcastService := services.NewBroadcastService(userRepo, profileRepo, notificationRepo, appLogger)
 
 	// Initialize storage
 	r2Storage := storage.NewR2Storage(&cfg.R2)
@@ -101,7 +100,6 @@ func main() {
 	notificationHandler := notifications.NewNotificationHandler(notificationRepo)
 	analyticsHandler := admin.NewAnalyticsHandler(analyticsService)
 	broadcastHandler := admin.NewBroadcastHandler(broadcastService)
-	bulkHandler := admin.NewBulkHandler(bulkService)
 
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, appLogger)
@@ -113,7 +111,7 @@ func main() {
 
 	// Middleware
 	app.Use(recover.New())
-	app.Use(logger.New())
+	app.Use(fiberLogger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
@@ -285,11 +283,12 @@ func main() {
 	// Broadcasts
 	adminRoutes.Post("/broadcasts", broadcastHandler.SendBroadcast)
 
-	// Bulk operations
-	adminRoutes.Post("/bulk/suspend", bulkHandler.BulkSuspend)
-	adminRoutes.Post("/bulk/activate", bulkHandler.BulkActivate)
-	adminRoutes.Post("/bulk/verify", bulkHandler.BulkVerify)
-	adminRoutes.Post("/bulk/delete", bulkHandler.BulkDelete)
+	// TODO: Re-enable bulk operations when BulkOperationService is implemented
+	// // Bulk operations
+	// adminRoutes.Post("/bulk/suspend", bulkHandler.BulkSuspend)
+	// adminRoutes.Post("/bulk/activate", bulkHandler.BulkActivate)
+	// adminRoutes.Post("/bulk/verify", bulkHandler.BulkVerify)
+	// adminRoutes.Post("/bulk/delete", bulkHandler.BulkDelete)
 
 	// Start server
 	port := cfg.Server.Port

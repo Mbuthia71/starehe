@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 

@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"starehian-society-platform/internal/middleware"
+	"starehian-society-platform/internal/models"
 	"starehian-society-platform/internal/services"
 )
 

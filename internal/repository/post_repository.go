@@ -162,7 +162,6 @@ func (r *PostRepository) GetPostsByUser(ctx context.Context, userID string, limi
 	// Unmarshal media URLs for each post
 	for _, post := range posts {
 		if post.Content != nil {
-			var mediaURLs []byte
 			// Need to re-query to get media_urls as JSONB
 			var mediaURLsJSON []byte
 			mediaQuery := `SELECT media_urls FROM posts WHERE id = $1`

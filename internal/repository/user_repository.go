@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"starehian-society-platform/internal/models"
 	"starehian-society-platform/pkg/database"
 )

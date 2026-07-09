@@ -117,7 +117,7 @@ func (a *AuthorizationService) CanViewPost(ctx context.Context, viewerID, postID
 	// Get post visibility and author
 	var visibility, authorID string
 	query := `SELECT visibility, user_id FROM posts WHERE id = $1`
-	err := a.db.GetContext(ctx, &visibility, &authorID, query, postID)
+	err := a.db.GetContext(ctx, &visibility, authorID, query, postID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil

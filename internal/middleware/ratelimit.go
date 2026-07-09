@@ -29,7 +29,7 @@ func RateLimitMiddleware(rateLimiter *ratelimit.RateLimiter, config *RateLimitCo
 		}
 
 		// Check minute limit
-		allowed, err := rateLimiter.CheckRateLimit(c.Context(), key, config.RequestsPerMinute, time.Minute)
+		allowed, _, err := rateLimiter.CheckRateLimit(c.Context(), key, config.RequestsPerMinute, time.Minute)
 		if err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Rate limit check failed",
@@ -43,7 +43,7 @@ func RateLimitMiddleware(rateLimiter *ratelimit.RateLimiter, config *RateLimitCo
 
 		// Check hour limit
 		hourKey := key + ":hour"
-		allowed, err = rateLimiter.CheckRateLimit(c.Context(), hourKey, config.RequestsPerHour, time.Hour)
+		allowed, _, err = rateLimiter.CheckRateLimit(c.Context(), hourKey, config.RequestsPerHour, time.Hour)
 		if err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Rate limit check failed",

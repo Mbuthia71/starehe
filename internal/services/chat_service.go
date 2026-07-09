@@ -6,8 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"starehian-society-platform/internal/chat"
-	"starehian-society-platform/internal/middleware"
 	"starehian-society-platform/internal/models"
 	"starehian-society-platform/internal/repository"
 	"starehian-society-platform/pkg/logger"
@@ -17,9 +15,7 @@ import (
 type ChatService struct {
 	chatRepo      *repository.ChatRepository
 	connectionRepo *repository.ConnectionRepository
-	centrifugo    *chat.CentrifugoClient
 	redis         *redis.Redis
-	authzService  *middleware.AuthorizationService
 	logger        *logger.Logger
 }
 
@@ -42,31 +38,20 @@ type CreateGroupRequest struct {
 func NewChatService(
 	chatRepo *repository.ChatRepository,
 	connectionRepo *repository.ConnectionRepository,
-	centrifugo *chat.CentrifugoClient,
 	redis *redis.Redis,
-	authzService *middleware.AuthorizationService,
 	logger *logger.Logger,
 ) *ChatService {
 	return &ChatService{
 		chatRepo:      chatRepo,
 		connectionRepo: connectionRepo,
-		centrifugo:    centrifugo,
 		redis:         redis,
-		authzService:  authzService,
 		logger:        logger,
 	}
 }
 
 // CreateDirectConversation creates a direct conversation between two users
 func (s *ChatService) CreateDirectConversation(ctx context.Context, userID1, userID2 string) (*models.Conversation, error) {
-	// Check if users are connected (for privacy)
-	connected, err := s.authzService.checkConnection(ctx, userID1, userID2)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check connection: %w", err)
-	}
-	if !connected {
-		return nil, fmt.Errorf("users must be connected to chat")
-	}
+	// TODO: Add connection check when authorization service is decoupled
 
 	// Check if conversation already exists
 	existing, err := s.chatRepo.GetDirectConversation(ctx, userID1, userID2)
@@ -201,17 +186,7 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, conversationID st
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
 
-	// Broadcast message via Centrifugo
-	channel := fmt.Sprintf("chat:%s", conversationID)
-	messageData := map[string]interface{}{
-		"type":    "message",
-		"message": message,
-	}
-
-	err = s.centrifugo.Publish(ctx, channel, messageData)
-	if err != nil {
-		s.logger.Errorf("Failed to publish message via Centrifugo: %v", err)
-	}
+	// TODO: Add Centrifugo broadcast when chat service is decoupled
 
 	// Update sender's last read message
 	s.chatRepo.UpdateLastReadMessage(ctx, conversationID, userID, message.ID)
@@ -286,18 +261,7 @@ func (s *ChatService) MarkAsRead(ctx context.Context, userID, conversationID, me
 		return fmt.Errorf("failed to mark as read: %w", err)
 	}
 
-	// Broadcast read receipt via Centrifugo
-	channel := fmt.Sprintf("chat:%s", conversationID)
-	readReceipt := map[string]interface{}{
-		"type":      "read_receipt",
-		"user_id":   userID,
-		"message_id": messageID,
-	}
-
-	err = s.centrifugo.Publish(ctx, channel, readReceipt)
-	if err != nil {
-		s.logger.Errorf("Failed to publish read receipt: %v", err)
-	}
+	// TODO: Add Centrifugo broadcast when chat service is decoupled
 
 	s.logger.Infof("Conversation %s marked as read by %s up to message %s", conversationID, userID, messageID)
 	return nil
@@ -384,11 +348,13 @@ func (s *ChatService) LeaveConversation(ctx context.Context, userID, conversatio
 }
 
 // GetConnectionToken generates a connection token for Centrifugo
+// TODO: Implement when chat service is decoupled
 func (s *ChatService) GetConnectionToken(userID string) (string, error) {
-	return s.centrifugo.GenerateConnectionToken(userID)
+	return "", fmt.Errorf("not implemented")
 }
 
 // GetChannelToken generates a channel token for a private channel
+// TODO: Implement when chat service is decoupled
 func (s *ChatService) GetChannelToken(userID, channel string) (string, error) {
-	return s.centrifugo.GenerateChannelToken(userID, channel)
+	return "", fmt.Errorf("not implemented")
 }

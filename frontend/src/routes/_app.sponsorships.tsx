@@ -1,0 +1,265 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import {
+  Heart,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Users,
+  ArrowUpRight,
+  Plus,
+  Search,
+  Filter,
+} from "lucide-react";
+import { useState } from "react";
+
+export const Route = createFileRoute("/_app/sponsorships")({
+  component: Sponsorships,
+});
+
+const mockSponsorships = [
+  {
+    id: "1",
+    title: "Education Support Fund",
+    description: "Support bright but needy students from Starehe to pursue higher education...",
+    sponsorshipType: "education",
+    targetAmount: 5000000,
+    currentAmount: 3250000,
+    startDate: "2024-01-01",
+    endDate: "2024-12-31",
+    beneficiary: "Starehe Students",
+    status: "active",
+    postedAt: "6 months ago",
+    contributionsCount: 145,
+  },
+  {
+    id: "2",
+    title: "Sports Equipment Drive",
+    description: "Provide sports equipment for various sports teams at Starehe Boys' Centre...",
+    sponsorshipType: "sports",
+    targetAmount: 2000000,
+    currentAmount: 850000,
+    startDate: "2024-03-01",
+    endDate: "2024-09-30",
+    beneficiary: "Starehe Sports Teams",
+    status: "active",
+    postedAt: "4 months ago",
+    contributionsCount: 67,
+  },
+  {
+    id: "3",
+    title: "Library Renovation",
+    description: "Renovate and modernize the library at Starehe Girls' Centre...",
+    sponsorshipType: "infrastructure",
+    targetAmount: 8000000,
+    currentAmount: 6200000,
+    startDate: "2024-02-01",
+    endDate: "2024-10-31",
+    beneficiary: "Starehe Girls' Centre",
+    status: "active",
+    postedAt: "5 months ago",
+    contributionsCount: 89,
+  },
+];
+
+function Sponsorships() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const progressPercentage = (current: number, target: number) =>
+    Math.round((current / target) * 100);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            <span className="inline-block h-[3px] w-6 rounded-full bg-primary" />
+            Giving Back
+          </div>
+          <h1 className="display mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
+            Sponsorships
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Support Starehe through sponsorships and endowments
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="size-4" />
+          Create Sponsorship
+        </button>
+      </div>
+
+      {/* Search and filters */}
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search sponsorships..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl border border-border/60 bg-card pl-10 pr-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <button className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted">
+          <Filter className="size-4" />
+          Filters
+        </button>
+      </div>
+
+      {/* Sponsorships list */}
+      <div className="space-y-3">
+        {mockSponsorships.map((sponsorship, i) => (
+          <motion.div
+            key={sponsorship.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.05 * i }}
+          >
+            <Link
+              to="/sponsorships/$id"
+              params={{ id: sponsorship.id }}
+              className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-foreground">{sponsorship.title}</h3>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                      {sponsorship.sponsorshipType}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Users className="size-3.5" />
+                      {sponsorship.beneficiary}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="size-3.5" />
+                      Until {sponsorship.endDate}
+                    </div>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                    {sponsorship.description}
+                  </p>
+                  
+                  {/* Progress bar */}
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="font-medium text-foreground">
+                        KES {sponsorship.currentAmount.toLocaleString()}
+                      </span>
+                      <span className="text-muted-foreground">
+                        of KES {sponsorship.targetAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progressPercentage(sponsorship.currentAmount, sponsorship.targetAmount)}%` }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                        className="h-full bg-primary"
+                      />
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {progressPercentage(sponsorship.currentAmount, sponsorship.targetAmount)}% funded · {sponsorship.contributionsCount} contributions
+                    </div>
+                  </div>
+                </div>
+                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <ArrowUpRight className="size-4" />
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Create Sponsorship Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="card-elev w-full max-w-lg p-6"
+          >
+            <h2 className="text-xl font-semibold">Create Sponsorship</h2>
+            <form className="mt-4 space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium">Title</label>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="e.g., Education Support Fund"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Type</label>
+                <select className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                  <option value="education">Education</option>
+                  <option value="sports">Sports</option>
+                  <option value="infrastructure">Infrastructure</option>
+                  <option value="events">Events</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Target Amount (KES)</label>
+                  <input
+                    type="number"
+                    className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="e.g., 5000000"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">End Date</label>
+                  <input
+                    type="date"
+                    className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Beneficiary</label>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="e.g., Starehe Students"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Description</label>
+                <textarea
+                  rows={4}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Describe the sponsorship purpose..."
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  Create Sponsorship
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}

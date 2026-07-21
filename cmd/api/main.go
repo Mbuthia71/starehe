@@ -13,6 +13,7 @@ import (
 
 	"starehian-society-platform/internal/admin"
 	"starehian-society-platform/internal/auth"
+	"starehian-society-platform/internal/business"
 	"starehian-society-platform/internal/chat"
 	"starehian-society-platform/internal/connections"
 	"starehian-society-platform/internal/middleware"
@@ -79,6 +80,7 @@ func main() {
 	postRepo := repository.NewPostRepository(db)
 	chatRepo := repository.NewChatRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
+	businessRepo := repository.NewBusinessRepository(db)
 
 	// Initialize authorization service
 	authzService := middleware.NewAuthorizationService(db)
@@ -92,6 +94,7 @@ func main() {
 	chatService := services.NewChatService(chatRepo, connectionRepo, redisClient, appLogger)
 	analyticsService := services.NewAnalyticsService(db, appLogger)
 	broadcastService := services.NewBroadcastService(userRepo, profileRepo, notificationRepo, appLogger)
+	businessService := services.NewBusinessService(businessRepo, appLogger)
 
 	// Initialize storage
 	r2Storage := storage.NewR2Storage(&cfg.R2)
@@ -107,6 +110,7 @@ func main() {
 	notificationHandler := notifications.NewNotificationHandler(notificationRepo)
 	analyticsHandler := admin.NewAnalyticsHandler(analyticsService)
 	broadcastHandler := admin.NewBroadcastHandler(broadcastService)
+	businessHandler := business.NewBusinessHandler(businessService)
 
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, appLogger)
@@ -289,6 +293,63 @@ func main() {
 
 	// Broadcasts
 	adminRoutes.Post("/broadcasts", broadcastHandler.SendBroadcast)
+
+	// Business routes
+	businessRoutes := protected.Group("/business")
+	businessRoutes.Post("/listings", businessHandler.CreateBusinessListing)
+	businessRoutes.Get("/listings", businessHandler.ListBusinessListings)
+	businessRoutes.Get("/listings/me", businessHandler.GetUserBusinessListings)
+	businessRoutes.Get("/listings/:id", businessHandler.GetBusinessListing)
+	businessRoutes.Put("/listings/:id", businessHandler.UpdateBusinessListing)
+	businessRoutes.Delete("/listings/:id", businessHandler.DeleteBusinessListing)
+
+	// Jobs routes
+	jobsRoutes := protected.Group("/jobs")
+	jobsRoutes.Post("/", businessHandler.CreateJob)
+	jobsRoutes.Get("/", businessHandler.ListJobs)
+	jobsRoutes.Get("/:id", businessHandler.GetJob)
+	jobsRoutes.Post("/:id/apply", businessHandler.ApplyForJob)
+	jobsRoutes.Get("/:id/applications", businessHandler.GetJobApplications)
+
+	// Tenders routes
+	tendersRoutes := protected.Group("/tenders")
+	tendersRoutes.Post("/", businessHandler.CreateTender)
+	tendersRoutes.Get("/", businessHandler.ListTenders)
+	tendersRoutes.Get("/:id", businessHandler.GetTender)
+	tendersRoutes.Post("/:id/bids", businessHandler.SubmitTenderBid)
+	tendersRoutes.Get("/:id/bids", businessHandler.GetTenderBids)
+
+	// Class Groups routes
+	classRoutes := protected.Group("/class-groups")
+	classRoutes.Post("/", businessHandler.CreateClassGroup)
+	classRoutes.Get("/", businessHandler.ListClassGroups)
+	classRoutes.Get("/:id", businessHandler.GetClassGroup)
+	classRoutes.Post("/:id/join", businessHandler.JoinClassGroup)
+	classRoutes.Post("/:id/leave", businessHandler.LeaveClassGroup)
+	classRoutes.Get("/:id/members", businessHandler.GetClassGroupMembers)
+
+	// Merchant Offers routes
+	offersRoutes := protected.Group("/offers")
+	offersRoutes.Post("/", businessHandler.CreateMerchantOffer)
+	offersRoutes.Get("/", businessHandler.ListMerchantOffers)
+	offersRoutes.Get("/:id", businessHandler.GetMerchantOffer)
+
+	// Sponsorships routes
+	sponsorshipsRoutes := protected.Group("/sponsorships")
+	sponsorshipsRoutes.Post("/", businessHandler.CreateSponsorship)
+	sponsorshipsRoutes.Get("/", businessHandler.ListSponsorships)
+	sponsorshipsRoutes.Get("/:id", businessHandler.GetSponsorship)
+	sponsorshipsRoutes.Post("/:id/contribute", businessHandler.ContributeToSponsorship)
+	sponsorshipsRoutes.Get("/:id/contributions", businessHandler.GetSponsorshipContributions)
+
+	// Escrow routes
+	escrowRoutes := protected.Group("/escrow")
+	escrowRoutes.Post("/", businessHandler.CreateEscrowTransaction)
+	escrowRoutes.Get("/:id", businessHandler.GetEscrowTransaction)
+	escrowRoutes.Get("/my", businessHandler.GetUserEscrowTransactions)
+	escrowRoutes.Post("/:id/fund", businessHandler.FundEscrowTransaction)
+	escrowRoutes.Post("/:id/release", businessHandler.ReleaseEscrowTransaction)
+	escrowRoutes.Post("/:id/cancel", businessHandler.CancelEscrowTransaction)
 
 	// TODO: Re-enable bulk operations when BulkOperationService is implemented
 	// // Bulk operations

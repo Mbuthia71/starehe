@@ -56,9 +56,13 @@ func (h *AuthHandler) RequestOTP(c *fiber.Ctx) error {
 	})
 }
 
-// Signup handles user signup with OTP
+// Signup handles user signup with password
 func (h *AuthHandler) Signup(c *fiber.Ctx) error {
-	var req services.SignupRequest
+	var req struct {
+		Phone    string `json:"phone"`
+		FullName string `json:"full_name"`
+		Password string `json:"password"`
+	}
 
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -66,17 +70,17 @@ func (h *AuthHandler) Signup(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Phone == "" || req.FullName == "" || req.OTP == "" {
+	if req.Phone == "" || req.FullName == "" || req.Password == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Phone, full name, and OTP are required",
+			"error": "Phone, full name, and password are required",
 		})
 	}
 
 	// Get IP address for rate limiting
 	ip := c.IP()
 
-	// Signup with OTP
-	resp, err := h.authService.SignupWithOTP(c.Context(), &req, ip)
+	// Signup with password
+	resp, err := h.authService.SignupWithPassword(c.Context(), req.Phone, req.FullName, req.Password, ip)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -86,9 +90,12 @@ func (h *AuthHandler) Signup(c *fiber.Ctx) error {
 	return c.JSON(resp)
 }
 
-// Login handles user login with OTP
+// Login handles user login with password
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
-	var req services.LoginRequest
+	var req struct {
+		Phone    string `json:"phone"`
+		Password string `json:"password"`
+	}
 
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -96,17 +103,17 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Phone == "" || req.OTP == "" {
+	if req.Phone == "" || req.Password == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Phone and OTP are required",
+			"error": "Phone and password are required",
 		})
 	}
 
 	// Get IP address for rate limiting
 	ip := c.IP()
 
-	// Login with OTP
-	resp, err := h.authService.LoginWithOTP(c.Context(), &req, ip)
+	// Login with password
+	resp, err := h.authService.LoginWithPassword(c.Context(), req.Phone, req.Password, ip)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": err.Error(),
@@ -136,7 +143,7 @@ func (h *AuthHandler) AdminLogin(c *fiber.Ctx) error {
 	}
 
 	// Login with password
-	resp, err := h.authService.LoginWithPassword(c.Context(), req.Email, req.Password)
+	resp, err := h.authService.LoginWithEmail(c.Context(), req.Email, req.Password)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": err.Error(),

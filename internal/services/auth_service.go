@@ -89,19 +89,10 @@ func (s *AuthService) RequestOTP(ctx context.Context, phone, ip string) error {
 	return nil
 }
 
-// SignupWithOTP creates a new user after OTP verification
-func (s *AuthService) SignupWithOTP(ctx context.Context, req *SignupRequest, ip string) (*AuthResponse, error) {
-	// Verify OTP first
-	valid, err := s.otpService.VerifyOTP(ctx, req.Phone, req.OTP)
-	if err != nil {
-		return nil, err
-	}
-	if !valid {
-		return nil, fmt.Errorf("invalid OTP")
-	}
-
+// SignupWithPassword creates a new user with password
+func (s *AuthService) SignupWithPassword(ctx context.Context, phone, fullName, password, ip string) (*AuthResponse, error) {
 	// Check if user already exists
-	existingUser, err := s.userRepo.GetByPhone(ctx, req.Phone)
+	existingUser, err := s.userRepo.GetByPhone(ctx, phone)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing user: %w", err)
 	}
@@ -109,12 +100,21 @@ func (s *AuthService) SignupWithOTP(ctx context.Context, req *SignupRequest, ip 
 		return nil, fmt.Errorf("user already exists")
 	}
 
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.Errorf("Failed to hash password: %v", err)
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
 	// Create new user
+	hashedPasswordStr := string(hashedPassword)
 	user := &models.User{
-		ID:     uuid.New().String(),
-		Phone:  req.Phone,
-		Role:   string(models.RoleMember),
-		Status: string(models.StatusPending), // Pending alumni verification
+		ID:           uuid.New().String(),
+		Phone:        phone,
+		PasswordHash: &hashedPasswordStr,
+		Role:         string(models.RoleMember),
+		Status:       string(models.StatusActive), // Auto-activate for password signup
 	}
 
 	err = s.userRepo.Create(ctx, user)
@@ -126,7 +126,7 @@ func (s *AuthService) SignupWithOTP(ctx context.Context, req *SignupRequest, ip 
 	// Create profile
 	profile := &models.Profile{
 		UserID:            user.ID,
-		FullName:          req.FullName,
+		FullName:          fullName,
 		ProfileVisibility: string(models.VisibilityConnections),
 		ContactVisibility: string(models.VisibilityConnections),
 		CareerVisibility:  string(models.VisibilityConnections),
@@ -161,24 +161,26 @@ func (s *AuthService) SignupWithOTP(ctx context.Context, req *SignupRequest, ip 
 	}, nil
 }
 
-// LoginWithOTP authenticates a user with OTP
-func (s *AuthService) LoginWithOTP(ctx context.Context, req *LoginRequest, ip string) (*AuthResponse, error) {
-	// Verify OTP
-	valid, err := s.otpService.VerifyOTP(ctx, req.Phone, req.OTP)
-	if err != nil {
-		return nil, err
-	}
-	if !valid {
-		return nil, fmt.Errorf("invalid OTP")
-	}
-
+// LoginWithPassword authenticates a user with password
+func (s *AuthService) LoginWithPassword(ctx context.Context, phone, password, ip string) (*AuthResponse, error) {
 	// Get user
-	user, err := s.userRepo.GetByPhone(ctx, req.Phone)
+	user, err := s.userRepo.GetByPhone(ctx, phone)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	if user == nil {
 		return nil, fmt.Errorf("user not found")
+	}
+
+	// Check if user has password
+	if user.PasswordHash == nil || *user.PasswordHash == "" {
+		return nil, fmt.Errorf("user has no password set. Please use OTP or contact admin")
+	}
+
+	// Verify password
+	err = bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(password))
+	if err != nil {
+		return nil, fmt.Errorf("invalid password")
 	}
 
 	// Check user status
@@ -292,8 +294,8 @@ func (s *AuthService) SetPassword(ctx context.Context, userID, password string) 
 	return nil
 }
 
-// LoginWithPassword authenticates a user with email and password (for admin)
-func (s *AuthService) LoginWithPassword(ctx context.Context, email, password string) (*AuthResponse, error) {
+// LoginWithEmail authenticates a user with email and password (for admin)
+func (s *AuthService) LoginWithEmail(ctx context.Context, email, password string) (*AuthResponse, error) {
 	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {

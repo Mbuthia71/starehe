@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   Fingerprint, KeyRound, LogOut, Phone, Mail, MapPin, ShieldCheck, ChevronRight,
-  Building2, GraduationCap, Camera, Linkedin, Twitter, Instagram, Globe, Check, Award, BadgeCheck,
+  Building2, GraduationCap, Camera, Linkedin, Twitter, Instagram, Globe, Check, Award, BadgeCheck, Briefcase, Users,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { clearAuth, getStoredMember } from "@/lib/auth";
@@ -25,6 +25,8 @@ function Profile() {
     email: true, phone: false, city: true, employer: true,
   });
   const [savedFlash, setSavedFlash] = useState(false);
+  const [careerGroups, setCareerGroups] = useState<any[]>([]);
+  const [loadingCareerGroups, setLoadingCareerGroups] = useState(false);
 
   useEffect(() => {
     try {
@@ -35,7 +37,47 @@ function Profile() {
       const p = localStorage.getItem("oss.profile.privacy");
       if (p) setPrivacy((prev) => ({ ...prev, ...JSON.parse(p) }));
     } catch {}
+    
+    fetchCareerGroups();
   }, []);
+
+  const fetchCareerGroups = async () => {
+    setLoadingCareerGroups(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('/api/groups?limit=10&offset=0', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      const careerGroupsOnly = (data.groups || []).filter((g: any) => g.type === 'career' && !g.is_member);
+      setCareerGroups(careerGroupsOnly.slice(0, 3));
+    } catch (error) {
+      console.error('Failed to fetch career groups:', error);
+    } finally {
+      setLoadingCareerGroups(false);
+    }
+  };
+
+  const joinCareerGroup = async (groupId: string) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/groups/${groupId}/join`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        toast.success("Joined career group!");
+        fetchCareerGroups();
+      }
+    } catch (error) {
+      console.error('Failed to join career group:', error);
+      toast.error("Failed to join group");
+    }
+  };
 
   const onFile = (file: File) => {
     const MAX_MB = 5;
@@ -237,6 +279,40 @@ function Profile() {
               <PrivacyRow label="Employer" on={privacy.employer} onToggle={() => togglePrivacy("employer")} />
             </div>
           </div>
+
+          {/* Career group suggestions */}
+          {!loadingCareerGroups && careerGroups.length > 0 && (
+            <div className="card-elev p-5">
+              <div className="label-eyebrow">Suggested career groups</div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Join groups matching your profession to network with peers.
+              </p>
+              <div className="mt-3 space-y-2">
+                {careerGroups.map((group) => (
+                  <div key={group.id} className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                        <Briefcase className="size-4" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">{group.name}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          <Users className="inline size-3 mr-1" />
+                          {group.member_count} members
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => joinCareerGroup(group.id)}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground hover:brightness-110"
+                    >
+                      Join
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </motion.section>
 

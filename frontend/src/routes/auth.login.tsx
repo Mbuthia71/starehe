@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, ArrowRight } from "lucide-react";
 import logoAsset from "@/assets/siohioma-logo.png?url";
-import stareheVideo from "@/assets/videostarehe.mp4?url";
 import { login, signup } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth/login")({
@@ -55,28 +54,14 @@ function Login() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-black">
-      {/* Full-bleed video */}
-      <motion.video
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.4 }}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover"
-      >
-        <source src={stareheVideo} type="video/mp4" />
-      </motion.video>
-
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Neutral cinematic vignette — bottom shadow for legibility only */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 35%, rgba(0,0,0,0.15) 55%, rgba(0,0,0,0.75) 100%)",
+            "linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 35%, rgba(0,0,0,0.1) 55%, rgba(0,0,0,0.5) 100%)",
         }}
       />
       {/* Starehe stripe */}

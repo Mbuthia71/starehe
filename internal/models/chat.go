@@ -27,7 +27,9 @@ type ConversationMember struct {
 
 type Message struct {
 	ID             string    `json:"id" db:"id"`
-	ConversationID string    `json:"conversation_id" db:"conversation_id"`
+	ConversationID string    `json:"conversation_id,omitempty" db:"conversation_id"`
+	GroupID        *string   `json:"group_id,omitempty" db:"group_id"`
+	RecipientID    *string   `json:"recipient_id,omitempty" db:"recipient_id"`
 	SenderID       string    `json:"sender_id" db:"sender_id"`
 	Content        *string   `json:"content,omitempty" db:"content"`
 	MediaURL       *string   `json:"media_url,omitempty" db:"media_url"`

@@ -2,6 +2,7 @@ package business
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -204,7 +205,14 @@ func (h *BusinessHandler) CreateTender(c *fiber.Ctx) error {
 	}
 
 	userID := c.Locals("user_id").(string)
-	tender, err := h.businessService.CreateTender(c.Context(), userID, req.OrganizationName, req.Title, req.Description, req.Requirements, req.BudgetRange, req.TenderNumber, req.Category, nil)
+	var deadline time.Time
+	if req.SubmissionDeadline != "" {
+		t, err := time.Parse(time.RFC3339, req.SubmissionDeadline)
+		if err == nil {
+			deadline = t
+		}
+	}
+	tender, err := h.businessService.CreateTender(c.Context(), userID, req.OrganizationName, req.Title, req.Description, req.Requirements, req.BudgetRange, req.TenderNumber, req.Category, deadline)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -283,7 +291,11 @@ func (h *BusinessHandler) CreateClassGroup(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	group, err := h.businessService.CreateClassGroup(c.Context(), req.SchoolType, req.YearOfCompletion, req.ClassName, req.Description, req.ClassRepID)
+	description := ""
+	if req.Description != nil {
+		description = *req.Description
+	}
+	group, err := h.businessService.CreateClassGroup(c.Context(), req.SchoolType, req.YearOfCompletion, req.ClassName, description, req.ClassRepID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -377,7 +389,20 @@ func (h *BusinessHandler) CreateMerchantOffer(c *fiber.Ctx) error {
 	}
 
 	userID := c.Locals("user_id").(string)
-	offer, err := h.businessService.CreateMerchantOffer(c.Context(), userID, req.Title, req.Description, req.BusinessID, req.DiscountPercentage, req.OriginalPrice, req.OfferPrice, nil, nil, req.TermsConditions, req.ImageURL, req.IsExclusive)
+	var validFrom, validUntil time.Time
+	if req.ValidFrom != "" {
+		t, err := time.Parse(time.RFC3339, req.ValidFrom)
+		if err == nil {
+			validFrom = t
+		}
+	}
+	if req.ValidUntil != "" {
+		t, err := time.Parse(time.RFC3339, req.ValidUntil)
+		if err == nil {
+			validUntil = t
+		}
+	}
+	offer, err := h.businessService.CreateMerchantOffer(c.Context(), userID, req.Title, req.Description, req.BusinessID, req.DiscountPercentage, req.OriginalPrice, req.OfferPrice, validFrom, validUntil, req.TermsConditions, req.ImageURL, req.IsExclusive)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -428,7 +453,21 @@ func (h *BusinessHandler) CreateSponsorship(c *fiber.Ctx) error {
 	}
 
 	userID := c.Locals("user_id").(string)
-	sponsorship, err := h.businessService.CreateSponsorship(c.Context(), userID, req.Title, req.Description, req.SponsorshipType, req.TargetAmount, nil, nil, req.Beneficiary, req.ImageURL)
+	var startDate time.Time
+	var endDate *time.Time
+	if req.StartDate != "" {
+		t, err := time.Parse(time.RFC3339, req.StartDate)
+		if err == nil {
+			startDate = t
+		}
+	}
+	if req.EndDate != nil && *req.EndDate != "" {
+		t, err := time.Parse(time.RFC3339, *req.EndDate)
+		if err == nil {
+			endDate = &t
+		}
+	}
+	sponsorship, err := h.businessService.CreateSponsorship(c.Context(), userID, req.Title, req.Description, req.SponsorshipType, req.TargetAmount, startDate, endDate, req.Beneficiary, req.ImageURL)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

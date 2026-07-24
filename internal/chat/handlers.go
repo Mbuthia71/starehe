@@ -52,7 +52,7 @@ func (h *ChatHandler) CreateGroupConversation(c *fiber.Ctx) error {
 		})
 	}
 
-	var req services.CreateGroupRequest
+	var req services.CreateConversationRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -313,6 +313,72 @@ func (h *ChatHandler) LeaveConversation(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Left conversation",
+	})
+}
+
+// GetGroupMessages retrieves messages from a group
+func (h *ChatHandler) GetGroupMessages(c *fiber.Ctx) error {
+	userID := middleware.GetUserID(c.Context())
+	if userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	groupID := c.Params("id")
+	if groupID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Group ID is required",
+		})
+	}
+
+	limit := c.QueryInt("limit", 50)
+	offset := c.QueryInt("offset", 0)
+
+	messages, err := h.chatService.GetGroupMessages(c.Context(), userID, groupID, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"messages": messages,
+		"limit":    limit,
+		"offset":   offset,
+	})
+}
+
+// GetDirectMessages retrieves direct messages between two users
+func (h *ChatHandler) GetDirectMessages(c *fiber.Ctx) error {
+	userID := middleware.GetUserID(c.Context())
+	if userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	targetID := c.Params("id")
+	if targetID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Target user ID is required",
+		})
+	}
+
+	limit := c.QueryInt("limit", 50)
+	offset := c.QueryInt("offset", 0)
+
+	messages, err := h.chatService.GetDirectMessages(c.Context(), userID, targetID, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"messages": messages,
+		"limit":    limit,
+		"offset":   offset,
 	})
 }
 

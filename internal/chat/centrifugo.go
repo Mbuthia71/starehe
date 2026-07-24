@@ -48,8 +48,8 @@ type CentrifugoClientInfo struct {
 func NewCentrifugoClient(cfg *config.CentrifugoConfig) *CentrifugoClient {
 	return &CentrifugoClient{
 		apiKey:    cfg.APIKey,
-		apiSecret: cfg.Secret,
-		apiURL:    cfg.APIURL,
+		apiSecret: cfg.APISecret,
+		apiURL:    cfg.BaseURL,
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},

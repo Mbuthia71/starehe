@@ -18,6 +18,7 @@ import (
 type AuthService struct {
 	userRepo    *repository.UserRepository
 	profileRepo *repository.ProfileRepository
+	groupRepo   *repository.GroupRepository
 	redis       *redis.Redis
 	jwtService  *tokens.JWTService
 	otpService  *tokens.OTPService
@@ -50,6 +51,7 @@ type AuthResponse struct {
 func NewAuthService(
 	userRepo *repository.UserRepository,
 	profileRepo *repository.ProfileRepository,
+	groupRepo *repository.GroupRepository,
 	redis *redis.Redis,
 	jwtService *tokens.JWTService,
 	otpService *tokens.OTPService,
@@ -58,6 +60,7 @@ func NewAuthService(
 	return &AuthService{
 		userRepo:    userRepo,
 		profileRepo: profileRepo,
+		groupRepo:   groupRepo,
 		redis:       redis,
 		jwtService:  jwtService,
 		otpService:  otpService,
@@ -136,6 +139,28 @@ func (s *AuthService) SignupWithPassword(ctx context.Context, phone, fullName, p
 	if err != nil {
 		s.logger.Errorf("Failed to create profile: %v", err)
 		return nil, fmt.Errorf("failed to create profile: %w", err)
+	}
+
+	// Auto-create cohort group for user's class year
+	if profile.ClassYear != nil && *profile.ClassYear > 0 {
+		groupService := NewGroupService(s.groupRepo, s.userRepo, s.logger)
+		cohortGroup, err := groupService.GetOrCreateCohortGroup(ctx, *profile.ClassYear)
+		if err != nil {
+			s.logger.Errorf("Failed to get or create cohort group: %v", err)
+		} else {
+			member := &models.GroupMember{
+				ID:      uuid.New().String(),
+				GroupID: cohortGroup.ID,
+				UserID:  user.ID,
+				Role:    models.MemberRoleMember,
+			}
+			err = s.groupRepo.AddGroupMember(ctx, member)
+			if err != nil {
+				s.logger.Errorf("Failed to add user to cohort group: %v", err)
+			} else {
+				s.logger.Infof("User %s auto-joined cohort group %s for year %d", user.ID, cohortGroup.ID, *profile.ClassYear)
+			}
+		}
 	}
 
 	// Generate tokens

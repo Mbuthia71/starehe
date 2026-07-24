@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
+import { API_CONFIG } from "../lib/api";
 
 export const Route = createFileRoute("/_app/jobs")({
   component: Jobs,
@@ -56,6 +57,61 @@ const mockJobs = [
 function Jobs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    business_id: "",
+    requirements: "",
+    responsibilities: "",
+    location: "",
+    job_type: "",
+    salary_range: "",
+    application_deadline: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_CONFIG.baseUrl}/jobs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to submit job");
+      }
+
+      const result = await response.json();
+      setShowCreateModal(false);
+      setFormData({
+        title: "",
+        description: "",
+        business_id: "",
+        requirements: "",
+        responsibilities: "",
+        location: "",
+        job_type: "",
+        salary_range: "",
+        application_deadline: "",
+      });
+      alert("Job posted successfully!");
+    } catch (error: any) {
+      setSubmitError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -166,21 +222,31 @@ function Jobs() {
             className="card-elev w-full max-w-lg p-6"
           >
             <h2 className="text-xl font-semibold">Post a Job</h2>
-            <form className="mt-4 space-y-4">
+            {submitError && (
+              <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {submitError}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">Job Title</label>
                 <input
                   type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., Senior Software Engineer"
+                  required
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Company</label>
+                <label className="mb-1 block text-sm font-medium">Business ID (Optional)</label>
                 <input
                   type="text"
+                  value={formData.business_id}
+                  onChange={(e) => setFormData({ ...formData, business_id: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="e.g., TechCorp Kenya"
+                  placeholder="Link to your business listing"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -188,13 +254,20 @@ function Jobs() {
                   <label className="mb-1 block text-sm font-medium">Location</label>
                   <input
                     type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., Nairobi"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Job Type</label>
-                  <select className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select
+                    value={formData.job_type}
+                    onChange={(e) => setFormData({ ...formData, job_type: e.target.value })}
+                    className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Select type</option>
                     <option value="full-time">Full-time</option>
                     <option value="part-time">Part-time</option>
                     <option value="contract">Contract</option>
@@ -203,19 +276,53 @@ function Jobs() {
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Salary Range</label>
+                <label className="mb-1 block text-sm font-medium">Salary Range (Optional)</label>
                 <input
                   type="text"
+                  value={formData.salary_range}
+                  onChange={(e) => setFormData({ ...formData, salary_range: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., KES 150,000 - 250,000"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Application Deadline (Optional)</label>
+                <input
+                  type="date"
+                  value={formData.application_deadline}
+                  onChange={(e) => setFormData({ ...formData, application_deadline: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Description</label>
                 <textarea
                   rows={4}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="Describe the role and requirements..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Requirements (Optional)</label>
+                <textarea
+                  rows={3}
+                  value={formData.requirements}
+                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="List the requirements for this role..."
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Responsibilities (Optional)</label>
+                <textarea
+                  rows={3}
+                  value={formData.responsibilities}
+                  onChange={(e) => setFormData({ ...formData, responsibilities: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="List the key responsibilities..."
                 />
               </div>
               <div className="flex gap-3">
@@ -223,14 +330,16 @@ function Jobs() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  Post Job
+                  {isSubmitting ? "Submitting..." : "Post Job"}
                 </button>
               </div>
             </form>

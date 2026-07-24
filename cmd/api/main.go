@@ -13,9 +13,9 @@ import (
 
 	"starehian-society-platform/internal/admin"
 	"starehian-society-platform/internal/auth"
-	"starehian-society-platform/internal/business"
 	"starehian-society-platform/internal/chat"
 	"starehian-society-platform/internal/connections"
+	"starehian-society-platform/internal/groups"
 	"starehian-society-platform/internal/middleware"
 	"starehian-society-platform/internal/notifications"
 	"starehian-society-platform/internal/posts"
@@ -80,21 +80,21 @@ func main() {
 	postRepo := repository.NewPostRepository(db)
 	chatRepo := repository.NewChatRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
-	businessRepo := repository.NewBusinessRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
 
 	// Initialize authorization service
 	authzService := middleware.NewAuthorizationService(db)
 
 	// Initialize services
-	authService := services.NewAuthService(userRepo, profileRepo, redisClient, jwtService, otpService, appLogger)
+	authService := services.NewAuthService(userRepo, profileRepo, groupRepo, redisClient, jwtService, otpService, appLogger)
 	profileService := services.NewProfileService(profileRepo, userRepo, appLogger)
 	adminService := services.NewAdminService(userRepo, adminRepo, appLogger)
 	connectionService := services.NewConnectionService(connectionRepo, userRepo, appLogger)
 	postService := services.NewPostService(postRepo, appLogger)
-	chatService := services.NewChatService(chatRepo, connectionRepo, redisClient, appLogger)
+	chatService := services.NewChatService(chatRepo, connectionRepo, groupRepo, redisClient, nil, appLogger)
+	groupService := services.NewGroupService(groupRepo, userRepo, appLogger)
 	analyticsService := services.NewAnalyticsService(db, appLogger)
 	broadcastService := services.NewBroadcastService(userRepo, profileRepo, notificationRepo, appLogger)
-	businessService := services.NewBusinessService(businessRepo, appLogger)
 
 	// Initialize storage
 	r2Storage := storage.NewR2Storage(&cfg.R2)
@@ -107,10 +107,10 @@ func main() {
 	postHandler := posts.NewPostHandler(postService)
 	uploadHandler := posts.NewUploadHandler(r2Storage)
 	chatHandler := chat.NewChatHandler(chatService)
+	groupHandler := groups.NewGroupHandler(groupService)
 	notificationHandler := notifications.NewNotificationHandler(notificationRepo)
 	analyticsHandler := admin.NewAnalyticsHandler(analyticsService)
 	broadcastHandler := admin.NewBroadcastHandler(broadcastService)
-	businessHandler := business.NewBusinessHandler(businessService)
 
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, appLogger)
@@ -251,6 +251,19 @@ func main() {
 	chatRoutes.Get("/token", chatHandler.GetConnectionToken)
 	chatRoutes.Get("/channel-token", chatHandler.GetChannelToken)
 
+	// Group routes
+	groupRoutes := protected.Group("/groups")
+	groupRoutes.Post("/", groupHandler.CreateGroup)
+	groupRoutes.Get("/", groupHandler.ListGroups)
+	groupRoutes.Get("/my", groupHandler.ListMyGroups)
+	groupRoutes.Get("/:id", groupHandler.GetGroup)
+	groupRoutes.Post("/:id/join", groupHandler.JoinGroup)
+	groupRoutes.Post("/:id/leave", groupHandler.LeaveGroup)
+	groupRoutes.Get("/:id/members", groupHandler.GetGroupMembers)
+	groupRoutes.Post("/:id/members", groupHandler.AddMember)
+	groupRoutes.Delete("/:id/members/:memberId", groupHandler.RemoveMember)
+	groupRoutes.Put("/:id/members/:memberId/role", groupHandler.UpdateMemberRole)
+
 	// Notification routes
 	notificationRoutes := protected.Group("/notifications")
 	notificationRoutes.Get("/", notificationHandler.GetNotifications)
@@ -293,66 +306,6 @@ func main() {
 
 	// Broadcasts
 	adminRoutes.Post("/broadcasts", broadcastHandler.SendBroadcast)
-
-	// Business routes
-	businessRoutes := protected.Group("/business")
-	businessRoutes.Post("/listings", businessHandler.CreateBusinessListing)
-	businessRoutes.Get("/listings", businessHandler.ListBusinessListings)
-	businessRoutes.Get("/listings/me", businessHandler.GetUserBusinessListings)
-	businessRoutes.Get("/listings/:id", businessHandler.GetBusinessListing)
-	businessRoutes.Put("/listings/:id", businessHandler.UpdateBusinessListing)
-	businessRoutes.Delete("/listings/:id", businessHandler.DeleteBusinessListing)
-
-	// Jobs routes
-	jobsRoutes := protected.Group("/jobs")
-	jobsRoutes.Post("/", businessHandler.CreateJob)
-	jobsRoutes.Get("/", businessHandler.ListJobs)
-	jobsRoutes.Get("/:id", businessHandler.GetJob)
-	jobsRoutes.Post("/:id/apply", businessHandler.ApplyForJob)
-	jobsRoutes.Get("/:id/applications", businessHandler.GetJobApplications)
-
-	// Tenders routes
-	tendersRoutes := protected.Group("/tenders")
-	tendersRoutes.Post("/", businessHandler.CreateTender)
-	tendersRoutes.Get("/", businessHandler.ListTenders)
-	tendersRoutes.Get("/:id", businessHandler.GetTender)
-	tendersRoutes.Post("/:id/bids", businessHandler.SubmitTenderBid)
-	tendersRoutes.Get("/:id/bids", businessHandler.GetTenderBids)
-
-	// Class Groups routes
-	classRoutes := protected.Group("/class-groups")
-	classRoutes.Post("/", businessHandler.CreateClassGroup)
-	classRoutes.Get("/", businessHandler.ListClassGroups)
-	classRoutes.Get("/:id", businessHandler.GetClassGroup)
-	classRoutes.Post("/:id/join", businessHandler.JoinClassGroup)
-	classRoutes.Post("/:id/leave", businessHandler.LeaveClassGroup)
-	classRoutes.Get("/:id/members", businessHandler.GetClassGroupMembers)
-
-	// Merchant Offers routes
-	offersRoutes := protected.Group("/offers")
-	offersRoutes.Post("/", businessHandler.CreateMerchantOffer)
-	offersRoutes.Get("/", businessHandler.ListMerchantOffers)
-	offersRoutes.Get("/:id", businessHandler.GetMerchantOffer)
-
-	// Sponsorships routes
-	sponsorshipsRoutes := protected.Group("/sponsorships")
-	sponsorshipsRoutes.Post("/", businessHandler.CreateSponsorship)
-	sponsorshipsRoutes.Get("/", businessHandler.ListSponsorships)
-	sponsorshipsRoutes.Get("/:id", businessHandler.GetSponsorship)
-	sponsorshipsRoutes.Post("/:id/contribute", businessHandler.ContributeToSponsorship)
-	sponsorshipsRoutes.Get("/:id/contributions", businessHandler.GetSponsorshipContributions)
-
-	// Escrow routes
-	escrowRoutes := protected.Group("/escrow")
-	escrowRoutes.Post("/", businessHandler.CreateEscrowTransaction)
-	escrowRoutes.Get("/:id", businessHandler.GetEscrowTransaction)
-	escrowRoutes.Get("/my", businessHandler.GetUserEscrowTransactions)
-	escrowRoutes.Post("/:id/fund", businessHandler.FundEscrowTransaction)
-	escrowRoutes.Post("/:id/release", businessHandler.ReleaseEscrowTransaction)
-	escrowRoutes.Post("/:id/cancel", businessHandler.CancelEscrowTransaction)
-
-	// TODO: Re-enable bulk operations when BulkOperationService is implemented
-	// // Bulk operations
 	// adminRoutes.Post("/bulk/suspend", bulkHandler.BulkSuspend)
 	// adminRoutes.Post("/bulk/activate", bulkHandler.BulkActivate)
 	// adminRoutes.Post("/bulk/verify", bulkHandler.BulkVerify)

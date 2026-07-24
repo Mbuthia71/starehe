@@ -220,7 +220,7 @@ func (r *ChatRepository) CreateMessage(ctx context.Context, message *models.Mess
 func (r *ChatRepository) GetMessage(ctx context.Context, messageID string) (*models.Message, error) {
 	var message models.Message
 	query := `
-		SELECT id, conversation_id, sender_id, content, media_url, created_at
+		SELECT id, conversation_id, group_id, recipient_id, sender_id, content, media_url, created_at
 		FROM messages
 		WHERE id = $1
 	`
@@ -257,7 +257,7 @@ func (r *ChatRepository) GetMessages(ctx context.Context, conversationID string,
 func (r *ChatRepository) GetMessagesAfter(ctx context.Context, conversationID, afterMessageID string, limit int) ([]*models.Message, error) {
 	var messages []*models.Message
 	query := `
-		SELECT id, conversation_id, sender_id, content, media_url, created_at
+		SELECT id, conversation_id, group_id, recipient_id, sender_id, content, media_url, created_at
 		FROM messages
 		WHERE conversation_id = $1 AND created_at > (SELECT created_at FROM messages WHERE id = $2)
 		ORDER BY created_at ASC
@@ -290,4 +290,42 @@ func (r *ChatRepository) DeleteMessage(ctx context.Context, messageID string) er
 	}
 	
 	return nil
+}
+
+// GetGroupMessages retrieves messages from a group
+func (r *ChatRepository) GetGroupMessages(ctx context.Context, groupID string, limit, offset int) ([]*models.Message, error) {
+	var messages []*models.Message
+	query := `
+		SELECT id, conversation_id, group_id, recipient_id, sender_id, content, media_url, created_at
+		FROM messages
+		WHERE group_id = $1
+		ORDER BY created_at ASC
+		LIMIT $2 OFFSET $3
+	`
+	
+	err := r.db.SelectContext(ctx, &messages, query, groupID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get group messages: %w", err)
+	}
+	
+	return messages, nil
+}
+
+// GetDirectMessages retrieves direct messages between two users
+func (r *ChatRepository) GetDirectMessages(ctx context.Context, userID1, userID2 string, limit, offset int) ([]*models.Message, error) {
+	var messages []*models.Message
+	query := `
+		SELECT id, conversation_id, group_id, recipient_id, sender_id, content, media_url, created_at
+		FROM messages
+		WHERE (sender_id = $1 AND recipient_id = $2) OR (sender_id = $2 AND recipient_id = $1)
+		ORDER BY created_at ASC
+		LIMIT $3 OFFSET $4
+	`
+	
+	err := r.db.SelectContext(ctx, &messages, query, userID1, userID2, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get direct messages: %w", err)
+	}
+	
+	return messages, nil
 }

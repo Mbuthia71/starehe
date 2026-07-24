@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
+import { API_CONFIG } from "../lib/api";
 
 export const Route = createFileRoute("/_app/tenders")({
   component: Tenders,
@@ -59,6 +60,59 @@ const mockTenders = [
 function Tenders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [formData, setFormData] = useState({
+    organization_name: "",
+    title: "",
+    description: "",
+    requirements: "",
+    budget_range: "",
+    tender_number: "",
+    category: "",
+    submission_deadline: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_CONFIG.baseUrl}/tenders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to submit tender");
+      }
+
+      const result = await response.json();
+      setShowCreateModal(false);
+      setFormData({
+        organization_name: "",
+        title: "",
+        description: "",
+        requirements: "",
+        budget_range: "",
+        tender_number: "",
+        category: "",
+        submission_deadline: "",
+      });
+      alert("Tender submitted successfully!");
+    } catch (error: any) {
+      setSubmitError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -169,46 +223,66 @@ function Tenders() {
             className="card-elev w-full max-w-lg p-6"
           >
             <h2 className="text-xl font-semibold">Post a Tender</h2>
-            <form className="mt-4 space-y-4">
+            {submitError && (
+              <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {submitError}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">Tender Title</label>
                 <input
                   type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., Supply of Office Equipment"
+                  required
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Organization</label>
                 <input
                   type="text"
+                  value={formData.organization_name}
+                  onChange={(e) => setFormData({ ...formData, organization_name: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., Ministry of Education"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Location</label>
-                  <input
-                    type="text"
-                    className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="e.g., Nairobi"
-                  />
-                </div>
-                <div>
                   <label className="mb-1 block text-sm font-medium">Category</label>
-                  <select className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Select category</option>
                     <option value="procurement">Procurement</option>
                     <option value="construction">Construction</option>
                     <option value="it">IT Services</option>
                     <option value="consulting">Consulting</option>
                   </select>
                 </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Tender Number (Optional)</label>
+                  <input
+                    type="text"
+                    value={formData.tender_number}
+                    onChange={(e) => setFormData({ ...formData, tender_number: e.target.value })}
+                    className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="e.g., TND/2024/001"
+                  />
+                </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Budget Range</label>
+                <label className="mb-1 block text-sm font-medium">Budget Range (Optional)</label>
                 <input
                   type="text"
+                  value={formData.budget_range}
+                  onChange={(e) => setFormData({ ...formData, budget_range: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., KES 5,000,000 - 7,000,000"
                 />
@@ -217,15 +291,31 @@ function Tenders() {
                 <label className="mb-1 block text-sm font-medium">Submission Deadline</label>
                 <input
                   type="date"
+                  value={formData.submission_deadline}
+                  onChange={(e) => setFormData({ ...formData, submission_deadline: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  required
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Description</label>
                 <textarea
                   rows={4}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="Describe the tender requirements..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Requirements (Optional)</label>
+                <textarea
+                  rows={3}
+                  value={formData.requirements}
+                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="List the requirements for this tender..."
                 />
               </div>
               <div className="flex gap-3">
@@ -233,14 +323,16 @@ function Tenders() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  Post Tender
+                  {isSubmitting ? "Submitting..." : "Post Tender"}
                 </button>
               </div>
             </form>

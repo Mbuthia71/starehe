@@ -24,6 +24,13 @@ func NewBusinessService(businessRepo *repository.BusinessRepository, logger *log
 	}
 }
 
+func getJobType(jobType *string) string {
+	if jobType != nil {
+		return *jobType
+	}
+	return "full-time"
+}
+
 // Business Listings
 func (s *BusinessService) CreateBusinessListing(ctx context.Context, userID, businessName, phoneNumber, location, description string, website, instagram, facebook *string) (*models.BusinessListing, error) {
 	business := &models.BusinessListing{
@@ -120,7 +127,7 @@ func (s *BusinessService) CreateJob(ctx context.Context, userID, title, descript
 		Requirements:        requirements,
 		Responsibilities:    responsibilities,
 		Location:            location,
-		JobType:             func() string { if jobType != nil { return *jobType } return "full-time" }(),
+		JobType:             getJobType(jobType),
 		SalaryRange:         salaryRange,
 		ApplicationDeadline: applicationDeadline,
 		Status:              "active",
@@ -381,7 +388,7 @@ func (s *BusinessService) CreateClassGroup(ctx context.Context, schoolType strin
 		SchoolType:      schoolType,
 		YearOfCompletion: yearOfCompletion,
 		ClassName:       className,
-		Description:     description,
+		Description:     &description,
 		ClassRepID:      classRepID,
 		MemberCount:     0,
 		IsActive:        true,
@@ -603,7 +610,7 @@ func (s *BusinessService) GetSponsorshipContributions(ctx context.Context, spons
 }
 
 // Escrow Transactions
-func (s *BusinessService) CreateEscrowTransaction(ctx context.Context, businessID, buyerID, sellerID string, amount float64, description, releaseConditions *string) (*models.EscrowTransaction, error) {
+func (s *BusinessService) CreateEscrowTransaction(ctx context.Context, businessID, buyerID, sellerID string, amount float64, description string, releaseConditions *string) (*models.EscrowTransaction, error) {
 	transaction := &models.EscrowTransaction{
 		ID:                uuid.New().String(),
 		BusinessID:        businessID,

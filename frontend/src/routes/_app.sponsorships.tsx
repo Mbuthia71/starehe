@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
+import { API_CONFIG } from "../lib/api";
 
 export const Route = createFileRoute("/_app/sponsorships")({
   component: Sponsorships,
@@ -65,6 +66,59 @@ const mockSponsorships = [
 function Sponsorships() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    sponsorship_type: "",
+    target_amount: 0,
+    start_date: "",
+    end_date: "",
+    beneficiary: "",
+    image_url: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_CONFIG.baseUrl}/sponsorships`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create sponsorship");
+      }
+
+      const result = await response.json();
+      setShowCreateModal(false);
+      setFormData({
+        title: "",
+        description: "",
+        sponsorship_type: "",
+        target_amount: 0,
+        start_date: "",
+        end_date: "",
+        beneficiary: "",
+        image_url: "",
+      });
+      alert("Sponsorship created successfully!");
+    } catch (error: any) {
+      setSubmitError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const progressPercentage = (current: number, target: number) =>
     Math.round((current / target) * 100);
@@ -189,18 +243,32 @@ function Sponsorships() {
             className="card-elev w-full max-w-lg p-6"
           >
             <h2 className="text-xl font-semibold">Create Sponsorship</h2>
-            <form className="mt-4 space-y-4">
+            {submitError && (
+              <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {submitError}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">Title</label>
                 <input
                   type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., Education Support Fund"
+                  required
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Type</label>
-                <select className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                <select
+                  value={formData.sponsorship_type}
+                  onChange={(e) => setFormData({ ...formData, sponsorship_type: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  required
+                >
+                  <option value="">Select type</option>
                   <option value="education">Education</option>
                   <option value="sports">Sports</option>
                   <option value="infrastructure">Infrastructure</option>
@@ -213,32 +281,61 @@ function Sponsorships() {
                   <label className="mb-1 block text-sm font-medium">Target Amount (KES)</label>
                   <input
                     type="number"
+                    value={formData.target_amount}
+                    onChange={(e) => setFormData({ ...formData, target_amount: parseFloat(e.target.value) || 0 })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., 5000000"
+                    required
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">End Date</label>
+                  <label className="mb-1 block text-sm font-medium">Start Date</label>
                   <input
                     type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
               <div>
+                <label className="mb-1 block text-sm font-medium">End Date</label>
+                <input
+                  type="date"
+                  value={formData.end_date}
+                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
                 <label className="mb-1 block text-sm font-medium">Beneficiary</label>
                 <input
                   type="text"
+                  value={formData.beneficiary}
+                  onChange={(e) => setFormData({ ...formData, beneficiary: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., Starehe Students"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Image URL (Optional)</label>
+                <input
+                  type="url"
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="https://..."
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Description</label>
                 <textarea
                   rows={4}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="Describe the sponsorship purpose..."
+                  required
                 />
               </div>
               <div className="flex gap-3">
@@ -246,14 +343,16 @@ function Sponsorships() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  Create Sponsorship
+                  {isSubmitting ? "Creating..." : "Create Sponsorship"}
                 </button>
               </div>
             </form>

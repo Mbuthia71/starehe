@@ -3,9 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
 	"starehian-society-platform/internal/models"

@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
+import { API_CONFIG } from "../lib/api";
 
 export const Route = createFileRoute("/_app/offers")({
   component: Offers,
@@ -68,6 +69,65 @@ const mockOffers = [
 function Offers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    business_id: "",
+    discount_percentage: 0,
+    original_price: 0,
+    offer_price: 0,
+    valid_from: "",
+    valid_until: "",
+    terms_conditions: "",
+    image_url: "",
+    is_exclusive: false,
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_CONFIG.baseUrl}/offers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create offer");
+      }
+
+      const result = await response.json();
+      setShowCreateModal(false);
+      setFormData({
+        title: "",
+        description: "",
+        business_id: "",
+        discount_percentage: 0,
+        original_price: 0,
+        offer_price: 0,
+        valid_from: "",
+        valid_until: "",
+        terms_conditions: "",
+        image_url: "",
+        is_exclusive: false,
+      });
+      alert("Offer posted successfully!");
+    } catch (error: any) {
+      setSubmitError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -190,21 +250,31 @@ function Offers() {
             className="card-elev w-full max-w-lg p-6"
           >
             <h2 className="text-xl font-semibold">Post Merchant Offer</h2>
-            <form className="mt-4 space-y-4">
+            {submitError && (
+              <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {submitError}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">Offer Title</label>
                 <input
                   type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., 20% Off Tech Products"
+                  required
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Business</label>
+                <label className="mb-1 block text-sm font-medium">Business ID (Optional)</label>
                 <input
                   type="text"
+                  value={formData.business_id}
+                  onChange={(e) => setFormData({ ...formData, business_id: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="e.g., TechStore Kenya"
+                  placeholder="Link to your business listing"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -212,6 +282,8 @@ function Offers() {
                   <label className="mb-1 block text-sm font-medium">Original Price (KES)</label>
                   <input
                     type="number"
+                    value={formData.original_price}
+                    onChange={(e) => setFormData({ ...formData, original_price: parseFloat(e.target.value) || 0 })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., 5000"
                   />
@@ -220,16 +292,30 @@ function Offers() {
                   <label className="mb-1 block text-sm font-medium">Offer Price (KES)</label>
                   <input
                     type="number"
+                    value={formData.offer_price}
+                    onChange={(e) => setFormData({ ...formData, offer_price: parseFloat(e.target.value) || 0 })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., 4000"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Discount Percentage (Optional)</label>
+                <input
+                  type="number"
+                  value={formData.discount_percentage}
+                  onChange={(e) => setFormData({ ...formData, discount_percentage: parseInt(e.target.value) || 0 })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="e.g., 20"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium">Valid From</label>
                   <input
                     type="date"
+                    value={formData.valid_from}
+                    onChange={(e) => setFormData({ ...formData, valid_from: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
@@ -237,6 +323,8 @@ function Offers() {
                   <label className="mb-1 block text-sm font-medium">Valid Until</label>
                   <input
                     type="date"
+                    value={formData.valid_until}
+                    onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
@@ -245,12 +333,41 @@ function Offers() {
                 <label className="mb-1 block text-sm font-medium">Description</label>
                 <textarea
                   rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="Describe the offer..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Terms & Conditions (Optional)</label>
+                <textarea
+                  rows={2}
+                  value={formData.terms_conditions}
+                  onChange={(e) => setFormData({ ...formData, terms_conditions: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="Any terms and conditions..."
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Image URL (Optional)</label>
+                <input
+                  type="url"
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="https://..."
                 />
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="exclusive" className="rounded border-border" />
+                <input
+                  type="checkbox"
+                  id="exclusive"
+                  checked={formData.is_exclusive}
+                  onChange={(e) => setFormData({ ...formData, is_exclusive: e.target.checked })}
+                  className="rounded border-border"
+                />
                 <label htmlFor="exclusive" className="text-sm">Make this offer exclusive</label>
               </div>
               <div className="flex gap-3">
@@ -258,14 +375,16 @@ function Offers() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  Post Offer
+                  {isSubmitting ? "Posting..." : "Post Offer"}
                 </button>
               </div>
             </form>

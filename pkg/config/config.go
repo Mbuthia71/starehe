@@ -48,11 +48,10 @@ type FCMConfig struct {
 }
 
 type CentrifugoConfig struct {
-	Secret    string
 	APIKey    string
-	AdminPassword string
-	AdminSecret string
-	APIURL    string
+	APISecret string
+	HMACSecret string
+	BaseURL   string
 }
 
 type ServerConfig struct {
@@ -88,11 +87,10 @@ func Load() *Config {
 			ServerKey: getEnv("FCM_SERVER_KEY", ""),
 		},
 		Centrifugo: CentrifugoConfig{
-			Secret:    getEnv("CENTRIFUGO_SECRET", "changeme"),
 			APIKey:    getEnv("CENTRIFUGO_API_KEY", "changeme"),
-			AdminPassword: getEnv("CENTRIFUGO_ADMIN_PASSWORD", "changeme"),
-			AdminSecret: getEnv("CENTRIFUGO_ADMIN_SECRET", "changeme"),
-			APIURL:    getEnv("CENTRIFUGO_API_URL", "http://localhost:8000"),
+			APISecret: getEnv("CENTRIFUGO_API_SECRET", "changeme"),
+			HMACSecret: getEnv("CENTRIFUGO_SECRET", "changeme"),
+			BaseURL:   getEnv("CENTRIFUGO_API_URL", "http://localhost:8000"),
 		},
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "3000"),

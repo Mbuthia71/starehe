@@ -15,6 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useState } from "react";
+import { API_CONFIG } from "../lib/api";
 
 export const Route = createFileRoute("/_app/business")({
   component: Business,
@@ -71,6 +72,57 @@ const mockBusinesses = [
 function Business() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [formData, setFormData] = useState({
+    business_name: "",
+    phone_number: "",
+    location: "",
+    website: "",
+    description: "",
+    instagram_handle: "",
+    facebook_handle: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_CONFIG.baseUrl}/business/listings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create business listing");
+      }
+
+      const result = await response.json();
+      setShowCreateModal(false);
+      setFormData({
+        business_name: "",
+        phone_number: "",
+        location: "",
+        website: "",
+        description: "",
+        instagram_handle: "",
+        facebook_handle: "",
+      });
+      alert("Business listed successfully!");
+    } catch (error: any) {
+      setSubmitError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -194,13 +246,21 @@ function Business() {
             className="card-elev w-full max-w-lg p-6"
           >
             <h2 className="text-xl font-semibold">List Your Business</h2>
-            <form className="mt-4 space-y-4">
+            {submitError && (
+              <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {submitError}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">Business Name</label>
                 <input
                   type="text"
+                  value={formData.business_name}
+                  onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., TechVentures Kenya"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -208,40 +268,52 @@ function Business() {
                   <label className="mb-1 block text-sm font-medium">Phone Number</label>
                   <input
                     type="tel"
+                    value={formData.phone_number}
+                    onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., +254 712 345 678"
+                    required
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Location</label>
                   <input
                     type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., Nairobi"
+                    required
                   />
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Website</label>
+                <label className="mb-1 block text-sm font-medium">Website (Optional)</label>
                 <input
                   type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="e.g., https://yourbusiness.co.ke"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Instagram Handle</label>
+                  <label className="mb-1 block text-sm font-medium">Instagram Handle (Optional)</label>
                   <input
                     type="text"
+                    value={formData.instagram_handle}
+                    onChange={(e) => setFormData({ ...formData, instagram_handle: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., @yourbusiness"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Facebook Handle</label>
+                  <label className="mb-1 block text-sm font-medium">Facebook Handle (Optional)</label>
                   <input
                     type="text"
+                    value={formData.facebook_handle}
+                    onChange={(e) => setFormData({ ...formData, facebook_handle: e.target.value })}
                     className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="e.g., Your Business"
                   />
@@ -251,8 +323,11 @@ function Business() {
                 <label className="mb-1 block text-sm font-medium">Description</label>
                 <textarea
                   rows={4}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="Describe your business..."
+                  required
                 />
               </div>
               <div className="flex items-center gap-2 rounded-lg bg-primary/5 p-3">
@@ -266,14 +341,16 @@ function Business() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  List Business
+                  {isSubmitting ? "Listing..." : "List Business"}
                 </button>
               </div>
             </form>

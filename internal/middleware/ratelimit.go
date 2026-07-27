@@ -3,6 +3,8 @@ package middleware
 import (
 	"fmt"
 
+	"github.com/gofiber/fiber/v2"
+
 	"starehian-society-platform/pkg/ratelimit"
 )
 
@@ -35,7 +37,12 @@ func RateLimitMiddleware(limiter *ratelimit.RateLimiter, limitType string) func(
 			key = fmt.Sprintf("%s:%s", limitType, userID)
 		}
 
-		if !limiter.Allow(c.Context(), key, RateLimitConfig[limitType]) {
+		limit, exists := RateLimitConfig[limitType]
+		if !exists {
+			limit = 100 // Default to general rate limit if not found
+		}
+
+		if !limiter.Allow(c.Context(), key, limit) {
 			return c.Status(429).JSON(fiber.Map{
 				"error": "rate limit exceeded",
 			})

@@ -55,7 +55,15 @@ func NewChatService(
 
 // CreateDirectConversation creates a direct conversation between two users
 func (s *ChatService) CreateDirectConversation(ctx context.Context, userID1, userID2 string) (*models.Conversation, error) {
-	// TODO: Add connection check when authorization service is decoupled
+	// Verify users are connected before allowing direct message
+	connection, err := s.connectionRepo.GetConnection(ctx, userID1, userID2)
+	if err != nil {
+		s.logger.Warnf("Failed to verify connection between %s and %s: %v", userID1, userID2, err)
+		return nil, fmt.Errorf("failed to verify connection: %w", err)
+	}
+	if connection == nil || connection.Status != "accepted" {
+		return nil, fmt.Errorf("users must be connected to start a direct conversation")
+	}
 
 	// Check if conversation already exists
 	existing, err := s.chatRepo.GetDirectConversation(ctx, userID1, userID2)
@@ -202,7 +210,16 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, conversationID st
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
 
-	// TODO: Add Centrifugo broadcast when chat service is decoupled
+	// Broadcast via Centrifugo if available
+	if s.centrifugo != nil {
+		go func() {
+			ctx := context.Background()
+			channel := fmt.Sprintf("conversation:%s", conversationID)
+			if err := s.centrifugo.Publish(ctx, channel, message); err != nil {
+				s.logger.Errorf("Failed to publish to Centrifugo: %v", err)
+			}
+		}()
+	}
 
 	// Update sender's last read message
 	s.chatRepo.UpdateLastReadMessage(ctx, conversationID, userID, message.ID)
@@ -353,7 +370,21 @@ func (s *ChatService) MarkAsRead(ctx context.Context, userID, conversationID, me
 		return fmt.Errorf("failed to mark as read: %w", err)
 	}
 
-	// TODO: Add Centrifugo broadcast when chat service is decoupled
+	// Broadcast read receipt via Centrifugo if available
+	if s.centrifugo != nil {
+		go func() {
+			ctx := context.Background()
+			channel := fmt.Sprintf("conversation:%s", conversationID)
+			readReceipt := map[string]interface{}{
+				"type":      "read",
+				"user_id":   userID,
+				"message_id": messageID,
+			}
+			if err := s.centrifugo.Publish(ctx, channel, readReceipt); err != nil {
+				s.logger.Errorf("Failed to publish read receipt: %v", err)
+			}
+		}()
+	}
 
 	s.logger.Infof("Conversation %s marked as read by %s up to message %s", conversationID, userID, messageID)
 	return nil

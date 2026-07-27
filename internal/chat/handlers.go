@@ -1,6 +1,8 @@
 package chat
 
 import (
+	"os"
+
 	"github.com/gofiber/fiber/v2"
 
 	"starehian-society-platform/internal/middleware"
@@ -398,9 +400,15 @@ func (h *ChatHandler) GetConnectionToken(c *fiber.Ctx) error {
 		})
 	}
 
+	// Use environment variable for WebSocket URL, fallback to default
+	centrifugoWSURL := os.Getenv("CENTRIFUGO_WS_URL")
+	if centrifugoWSURL == "" {
+		centrifugoWSURL = "ws://localhost:8000/connection/websocket"
+	}
+
 	return c.JSON(fiber.Map{
 		"token": token,
-		"url":   "ws://localhost:8000/connection/websocket", // Centrifugo WebSocket URL
+		"url":   centrifugoWSURL,
 	})
 }
 

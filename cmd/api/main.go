@@ -29,6 +29,7 @@ import (
 	"starehian-society-platform/pkg/ratelimit"
 	"starehian-society-platform/pkg/redis"
 	"starehian-society-platform/pkg/storage"
+	"starehian-society-platform/pkg/centrifugo"
 )
 
 func main() {
@@ -85,13 +86,23 @@ func main() {
 	// Initialize authorization service
 	authzService := middleware.NewAuthorizationService(db)
 
+	// Initialize Centrifugo client
+	centrifugoClient, err := centrifugo.NewCentrifugoClient(
+		os.Getenv("CENTRIFUGO_API_KEY"),
+		os.Getenv("CENTRIFUGO_SECRET"),
+	)
+	if err != nil {
+		appLogger.Warnf("Failed to initialize Centrifugo client: %v (real-time features disabled)", err)
+		// Don't exit - continue without real-time support
+	}
+
 	// Initialize services
 	authService := services.NewAuthService(userRepo, profileRepo, groupRepo, redisClient, jwtService, otpService, appLogger)
 	profileService := services.NewProfileService(profileRepo, userRepo, appLogger)
 	adminService := services.NewAdminService(userRepo, adminRepo, appLogger)
 	connectionService := services.NewConnectionService(connectionRepo, userRepo, appLogger)
 	postService := services.NewPostService(postRepo, appLogger)
-	chatService := services.NewChatService(chatRepo, connectionRepo, groupRepo, redisClient, nil, appLogger)
+	chatService := services.NewChatService(chatRepo, connectionRepo, groupRepo, redisClient, centrifugoClient, appLogger)
 	groupService := services.NewGroupService(groupRepo, userRepo, appLogger)
 	analyticsService := services.NewAnalyticsService(db, appLogger)
 	broadcastService := services.NewBroadcastService(userRepo, profileRepo, notificationRepo, appLogger)
@@ -237,8 +248,9 @@ func main() {
 	uploadRoutes.Post("/media", uploadHandler.UploadMedia)
 	uploadRoutes.Post("/media/multiple", uploadHandler.UploadMultipleMedia)
 
-	// Chat routes
+	// Chat routes - dedicated rate limiting for real-time messaging
 	chatRoutes := protected.Group("/chat")
+	chatRoutes.Use(middleware.RateLimitMiddleware(rateLimiter, middleware.ChatRateLimit))
 	chatRoutes.Post("/direct/:id", chatHandler.CreateDirectConversation)
 	chatRoutes.Post("/group", chatHandler.CreateGroupConversation)
 	chatRoutes.Post("/:id/messages", chatHandler.SendMessage)

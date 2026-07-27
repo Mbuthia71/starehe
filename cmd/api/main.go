@@ -87,14 +87,13 @@ func main() {
 	authzService := middleware.NewAuthorizationService(db)
 
 	// Initialize Centrifugo client
-	centrifugoClient, err := centrifugo.NewCentrifugoClient(
+	centrifugoClient := centrifugo.NewCentrifugoClient(
 		os.Getenv("CENTRIFUGO_API_KEY"),
 		os.Getenv("CENTRIFUGO_SECRET"),
+		os.Getenv("CENTRIFUGO_SECRET"),
+		os.Getenv("CENTRIFUGO_URL"),
+		appLogger,
 	)
-	if err != nil {
-		appLogger.Warnf("Failed to initialize Centrifugo client: %v (real-time features disabled)", err)
-		// Don't exit - continue without real-time support
-	}
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, profileRepo, groupRepo, redisClient, jwtService, otpService, appLogger)
@@ -253,6 +252,9 @@ func main() {
 	chatRoutes.Use(middleware.RateLimitMiddleware(rateLimiter, middleware.ChatRateLimit))
 	chatRoutes.Post("/direct/:id", chatHandler.CreateDirectConversation)
 	chatRoutes.Post("/group", chatHandler.CreateGroupConversation)
+	chatRoutes.Get("/group/:id/messages", chatHandler.GetGroupMessages)
+	chatRoutes.Post("/group/:id/messages", chatHandler.SendGroupMessage)
+	chatRoutes.Get("/direct/:id/messages", chatHandler.GetDirectMessages)
 	chatRoutes.Post("/:id/messages", chatHandler.SendMessage)
 	chatRoutes.Get("/:id/messages", chatHandler.GetMessages)
 	chatRoutes.Get("/", chatHandler.GetConversations)

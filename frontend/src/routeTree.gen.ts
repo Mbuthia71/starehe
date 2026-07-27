@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as PIdRouteImport } from './routes/p.$id'
+import { Route as DashboardLayoutRouteImport } from './routes/dashboard/_layout'
 import { Route as AuthPinSetupRouteImport } from './routes/auth.pin-setup'
 import { Route as AuthOtpRouteImport } from './routes/auth.otp'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
@@ -25,6 +26,7 @@ import { Route as AppSponsorshipsRouteImport } from './routes/_app.sponsorships'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppProductsRouteImport } from './routes/_app.products'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
+import { Route as AppMessagesRouteImport } from './routes/_app.messages'
 import { Route as AppLoansRouteImport } from './routes/_app.loans'
 import { Route as AppJobsRouteImport } from './routes/_app.jobs'
 import { Route as AppGuarantorsRouteImport } from './routes/_app.guarantors'
@@ -37,6 +39,7 @@ import { Route as AppAccountsRouteImport } from './routes/_app.accounts'
 import { Route as AppLoansApplyRouteImport } from './routes/_app.loans.apply'
 import { Route as AppDevStatementRouteImport } from './routes/_app.dev.statement'
 import { Route as AppDevEmailsRouteImport } from './routes/_app.dev.emails'
+import { Route as AppChatIdRouteImport } from './routes/_app.chat.$id'
 import { Route as AppBusinessIdRouteImport } from './routes/_app.business.$id'
 import { Route as AdminAdminTransactionsRouteImport } from './routes/_admin.admin.transactions'
 import { Route as AdminAdminMembersRouteImport } from './routes/_admin.admin.members'
@@ -60,6 +63,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const PIdRoute = PIdRouteImport.update({
   id: '/p/$id',
   path: '/p/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardLayoutRoute = DashboardLayoutRouteImport.update({
+  id: '/dashboard/_layout',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthPinSetupRoute = AuthPinSetupRouteImport.update({
@@ -122,6 +130,11 @@ const AppOffersRoute = AppOffersRouteImport.update({
   path: '/offers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMessagesRoute = AppMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLoansRoute = AppLoansRouteImport.update({
   id: '/loans',
   path: '/loans',
@@ -182,6 +195,11 @@ const AppDevEmailsRoute = AppDevEmailsRouteImport.update({
   path: '/dev/emails',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChatIdRoute = AppChatIdRouteImport.update({
+  id: '/chat/$id',
+  path: '/chat/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBusinessIdRoute = AppBusinessIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -224,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/guarantors': typeof AppGuarantorsRoute
   '/jobs': typeof AppJobsRoute
   '/loans': typeof AppLoansRouteWithChildren
+  '/messages': typeof AppMessagesRoute
   '/offers': typeof AppOffersRoute
   '/products': typeof AppProductsRoute
   '/profile': typeof AppProfileRoute
@@ -236,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/otp': typeof AuthOtpRoute
   '/auth/pin-setup': typeof AuthPinSetupRoute
+  '/dashboard': typeof DashboardLayoutRoute
   '/p/$id': typeof PIdRoute
   '/admin/approvals': typeof AdminAdminApprovalsRoute
   '/admin/dashboard': typeof AdminAdminDashboardRoute
@@ -243,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AdminAdminMembersRoute
   '/admin/transactions': typeof AdminAdminTransactionsRoute
   '/business/$id': typeof AppBusinessIdRoute
+  '/chat/$id': typeof AppChatIdRoute
   '/dev/emails': typeof AppDevEmailsRoute
   '/dev/statement': typeof AppDevStatementRoute
   '/loans/apply': typeof AppLoansApplyRoute
@@ -258,6 +279,7 @@ export interface FileRoutesByTo {
   '/guarantors': typeof AppGuarantorsRoute
   '/jobs': typeof AppJobsRoute
   '/loans': typeof AppLoansRouteWithChildren
+  '/messages': typeof AppMessagesRoute
   '/offers': typeof AppOffersRoute
   '/products': typeof AppProductsRoute
   '/profile': typeof AppProfileRoute
@@ -270,6 +292,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/otp': typeof AuthOtpRoute
   '/auth/pin-setup': typeof AuthPinSetupRoute
+  '/dashboard': typeof DashboardLayoutRoute
   '/p/$id': typeof PIdRoute
   '/admin/approvals': typeof AdminAdminApprovalsRoute
   '/admin/dashboard': typeof AdminAdminDashboardRoute
@@ -277,6 +300,7 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AdminAdminMembersRoute
   '/admin/transactions': typeof AdminAdminTransactionsRoute
   '/business/$id': typeof AppBusinessIdRoute
+  '/chat/$id': typeof AppChatIdRoute
   '/dev/emails': typeof AppDevEmailsRoute
   '/dev/statement': typeof AppDevStatementRoute
   '/loans/apply': typeof AppLoansApplyRoute
@@ -294,6 +318,7 @@ export interface FileRoutesById {
   '/_app/guarantors': typeof AppGuarantorsRoute
   '/_app/jobs': typeof AppJobsRoute
   '/_app/loans': typeof AppLoansRouteWithChildren
+  '/_app/messages': typeof AppMessagesRoute
   '/_app/offers': typeof AppOffersRoute
   '/_app/products': typeof AppProductsRoute
   '/_app/profile': typeof AppProfileRoute
@@ -306,6 +331,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/otp': typeof AuthOtpRoute
   '/auth/pin-setup': typeof AuthPinSetupRoute
+  '/dashboard/_layout': typeof DashboardLayoutRoute
   '/p/$id': typeof PIdRoute
   '/_app/': typeof AppIndexRoute
   '/_admin/admin/approvals': typeof AdminAdminApprovalsRoute
@@ -314,6 +340,7 @@ export interface FileRoutesById {
   '/_admin/admin/members': typeof AdminAdminMembersRoute
   '/_admin/admin/transactions': typeof AdminAdminTransactionsRoute
   '/_app/business/$id': typeof AppBusinessIdRoute
+  '/_app/chat/$id': typeof AppChatIdRoute
   '/_app/dev/emails': typeof AppDevEmailsRoute
   '/_app/dev/statement': typeof AppDevStatementRoute
   '/_app/loans/apply': typeof AppLoansApplyRoute
@@ -331,6 +358,7 @@ export interface FileRouteTypes {
     | '/guarantors'
     | '/jobs'
     | '/loans'
+    | '/messages'
     | '/offers'
     | '/products'
     | '/profile'
@@ -343,6 +371,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/otp'
     | '/auth/pin-setup'
+    | '/dashboard'
     | '/p/$id'
     | '/admin/approvals'
     | '/admin/dashboard'
@@ -350,6 +379,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/transactions'
     | '/business/$id'
+    | '/chat/$id'
     | '/dev/emails'
     | '/dev/statement'
     | '/loans/apply'
@@ -365,6 +395,7 @@ export interface FileRouteTypes {
     | '/guarantors'
     | '/jobs'
     | '/loans'
+    | '/messages'
     | '/offers'
     | '/products'
     | '/profile'
@@ -377,6 +408,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/otp'
     | '/auth/pin-setup'
+    | '/dashboard'
     | '/p/$id'
     | '/admin/approvals'
     | '/admin/dashboard'
@@ -384,6 +416,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/transactions'
     | '/business/$id'
+    | '/chat/$id'
     | '/dev/emails'
     | '/dev/statement'
     | '/loans/apply'
@@ -400,6 +433,7 @@ export interface FileRouteTypes {
     | '/_app/guarantors'
     | '/_app/jobs'
     | '/_app/loans'
+    | '/_app/messages'
     | '/_app/offers'
     | '/_app/products'
     | '/_app/profile'
@@ -412,6 +446,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/otp'
     | '/auth/pin-setup'
+    | '/dashboard/_layout'
     | '/p/$id'
     | '/_app/'
     | '/_admin/admin/approvals'
@@ -420,6 +455,7 @@ export interface FileRouteTypes {
     | '/_admin/admin/members'
     | '/_admin/admin/transactions'
     | '/_app/business/$id'
+    | '/_app/chat/$id'
     | '/_app/dev/emails'
     | '/_app/dev/statement'
     | '/_app/loans/apply'
@@ -431,6 +467,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthOtpRoute: typeof AuthOtpRoute
   AuthPinSetupRoute: typeof AuthPinSetupRoute
+  DashboardLayoutRoute: typeof DashboardLayoutRoute
   PIdRoute: typeof PIdRoute
 }
 
@@ -462,6 +499,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$id'
       fullPath: '/p/$id'
       preLoaderRoute: typeof PIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/_layout': {
+      id: '/dashboard/_layout'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardLayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/pin-setup': {
@@ -548,6 +592,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOffersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/messages': {
+      id: '/_app/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/loans': {
       id: '/_app/loans'
       path: '/loans'
@@ -630,6 +681,13 @@ declare module '@tanstack/react-router' {
       path: '/dev/emails'
       fullPath: '/dev/emails'
       preLoaderRoute: typeof AppDevEmailsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/chat/$id': {
+      id: '/_app/chat/$id'
+      path: '/chat/$id'
+      fullPath: '/chat/$id'
+      preLoaderRoute: typeof AppChatIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/business/$id': {
@@ -729,6 +787,7 @@ interface AppRouteChildren {
   AppGuarantorsRoute: typeof AppGuarantorsRoute
   AppJobsRoute: typeof AppJobsRoute
   AppLoansRoute: typeof AppLoansRouteWithChildren
+  AppMessagesRoute: typeof AppMessagesRoute
   AppOffersRoute: typeof AppOffersRoute
   AppProductsRoute: typeof AppProductsRoute
   AppProfileRoute: typeof AppProfileRoute
@@ -739,6 +798,7 @@ interface AppRouteChildren {
   AppTransferRoute: typeof AppTransferRoute
   AppWithdrawRoute: typeof AppWithdrawRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppChatIdRoute: typeof AppChatIdRoute
   AppDevEmailsRoute: typeof AppDevEmailsRoute
   AppDevStatementRoute: typeof AppDevStatementRoute
 }
@@ -753,6 +813,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppGuarantorsRoute: AppGuarantorsRoute,
   AppJobsRoute: AppJobsRoute,
   AppLoansRoute: AppLoansRouteWithChildren,
+  AppMessagesRoute: AppMessagesRoute,
   AppOffersRoute: AppOffersRoute,
   AppProductsRoute: AppProductsRoute,
   AppProfileRoute: AppProfileRoute,
@@ -763,6 +824,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTransferRoute: AppTransferRoute,
   AppWithdrawRoute: AppWithdrawRoute,
   AppIndexRoute: AppIndexRoute,
+  AppChatIdRoute: AppChatIdRoute,
   AppDevEmailsRoute: AppDevEmailsRoute,
   AppDevStatementRoute: AppDevStatementRoute,
 }
@@ -775,6 +837,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthOtpRoute: AuthOtpRoute,
   AuthPinSetupRoute: AuthPinSetupRoute,
+  DashboardLayoutRoute: DashboardLayoutRoute,
   PIdRoute: PIdRoute,
 }
 export const routeTree = rootRouteImport

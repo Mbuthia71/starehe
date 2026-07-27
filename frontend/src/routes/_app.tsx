@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Home, Users, UserPlus, Building2, Activity, User, Bell, AlertTriangle,
   ChevronsLeft, ChevronsRight, LogOut, Search, Sun, Moon, Menu, X,
-  Briefcase, FileText, GraduationCap, Tag, Heart, Store,
+  Briefcase, FileText, GraduationCap, Tag, Heart, Store, MessageSquare,
 } from "lucide-react";
 import { SiohiomaLoader } from "@/components/SiohiomaLoader";
 import { isAuthenticated, getStoredMember, clearAuth, updateActivity, startSessionTimeoutCheck, detectDeviceSecurity, trustCurrentDevice, isTrustedDevice, type AuthMember } from "@/lib/auth";
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_app")({
 const tabs = [
   { to: "/", label: "Home", icon: Home, exact: true },
   { to: "/accounts", label: "Directory", icon: Users },
+  { to: "/messages", label: "Messages", icon: MessageSquare },
   { to: "/jobs", label: "Jobs", icon: Briefcase },
   { to: "/tenders", label: "Tenders", icon: FileText },
   { to: "/class-groups", label: "Class Groups", icon: GraduationCap },

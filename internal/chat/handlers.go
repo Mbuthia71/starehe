@@ -110,6 +110,39 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	return c.JSON(message)
 }
 
+// SendGroupMessage sends a message to a group
+func (h *ChatHandler) SendGroupMessage(c *fiber.Ctx) error {
+	userID := middleware.GetUserID(c.Context())
+	if userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	groupID := c.Params("id")
+	if groupID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Group ID is required",
+		})
+	}
+
+	var req services.SendMessageRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	message, err := h.chatService.SendGroupMessage(c.Context(), userID, groupID, &req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(message)
+}
+
 // GetMessages retrieves messages from a conversation
 func (h *ChatHandler) GetMessages(c *fiber.Ctx) error {
 	userID := middleware.GetUserID(c.Context())

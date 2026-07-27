@@ -87,6 +87,22 @@ services:
       - starehian-network
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: starehian-frontend
+    environment:
+      PORT: 3001
+      CENTRIFUGO_URL: http://centrifugo:8000
+    ports:
+      - "3001:3001"
+    depends_on:
+      - centrifugo
+    networks:
+      - starehian-network
+    restart: unless-stopped
+
   loki:
     image: grafana/loki:latest
     container_name: starehian-loki

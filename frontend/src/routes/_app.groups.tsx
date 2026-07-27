@@ -23,14 +23,56 @@ function Groups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'chapter' | 'career' | 'cohort'>('all');
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    type: 'chapter' as 'chapter' | 'career' | 'cohort' | 'custom',
+    description: '',
+  });
 
   useEffect(() => {
     fetchGroups();
   }, [filter]);
 
+  const createGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setCreating(true);
+    try {
+      const token = localStorage.getItem('oss_token');
+      const response = await fetch(`/api/groups`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          type: form.type,
+          join_policy: 'open',
+          description: form.description.trim(),
+        }),
+      });
+      if (response.ok) {
+        setForm({ name: '', type: 'chapter', description: '' });
+        setShowCreate(false);
+        fetchGroups();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Failed to create chapter');
+      }
+    } catch (error) {
+      console.error('Failed to create chapter:', error);
+      alert('Failed to create chapter. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const fetchGroups = async () => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('oss_token');
       const response = await fetch(`/api/groups?limit=50&offset=0`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -47,7 +89,7 @@ function Groups() {
 
   const joinGroup = async (groupId: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('oss_token');
       const response = await fetch(`/api/groups/${groupId}/join`, {
         method: 'POST',
         headers: {
@@ -56,15 +98,19 @@ function Groups() {
       });
       if (response.ok) {
         fetchGroups();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Failed to join group');
       }
     } catch (error) {
       console.error('Failed to join group:', error);
+      alert('Failed to join group. Please try again.');
     }
   };
 
   const leaveGroup = async (groupId: string) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('oss_token');
       const response = await fetch(`/api/groups/${groupId}/leave`, {
         method: 'POST',
         headers: {
@@ -101,15 +147,70 @@ function Groups() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <div className="label-eyebrow">Alumni groups</div>
-        <h1 className="display mt-1 text-3xl font-semibold tracking-tight">
-          Find your circle.
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Chapters, career groups, and class cohorts. Join to connect and chat.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <div className="label-eyebrow">Alumni groups</div>
+          <h1 className="display mt-1 text-3xl font-semibold tracking-tight">
+            Find your circle.
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Chapters, career groups, and class cohorts. Join to connect and chat.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreate((v) => !v)}
+          className="shrink-0 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:brightness-110"
+        >
+          {showCreate ? 'Cancel' : 'New chapter'}
+        </button>
       </header>
+
+      {showCreate && (
+        <form onSubmit={createGroup} className="card-elev p-5 space-y-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">Name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. Nairobi Chapter"
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">Type</label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value as typeof form.type })}
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="chapter">Chapter</option>
+                <option value="career">Career</option>
+                <option value="cohort">Class Year</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="What is this group about?"
+              rows={2}
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={creating || !form.name.trim()}
+            className="rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground hover:brightness-110 disabled:opacity-50"
+          >
+            {creating ? 'Creating...' : 'Create chapter'}
+          </button>
+        </form>
+      )}
 
       <div className="flex gap-2">
         {(['all', 'chapter', 'career', 'cohort'] as const).map((f) => (
@@ -170,8 +271,7 @@ function Groups() {
                 ) : (
                   <button
                     onClick={() => joinGroup(group.id)}
-                    disabled={group.join_policy === 'approval_required'}
-                    className="mt-4 w-full rounded-xl bg-primary py-2 text-xs font-semibold text-primary-foreground hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-4 w-full rounded-xl bg-primary py-2 text-xs font-semibold text-primary-foreground hover:brightness-110"
                   >
                     {group.join_policy === 'approval_required' ? 'Request to join' : 'Join group'}
                   </button>

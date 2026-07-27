@@ -58,7 +58,7 @@ func (s *ChatService) CreateDirectConversation(ctx context.Context, userID1, use
 	// Verify users are connected before allowing direct message
 	connection, err := s.connectionRepo.GetConnection(ctx, userID1, userID2)
 	if err != nil {
-		s.logger.Warnf("Failed to verify connection between %s and %s: %v", userID1, userID2, err)
+		s.logger.Errorf("Failed to verify connection between %s and %s: %v", userID1, userID2, err)
 		return nil, fmt.Errorf("failed to verify connection: %w", err)
 	}
 	if connection == nil || connection.Status != "accepted" {

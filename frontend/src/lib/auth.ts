@@ -157,14 +157,14 @@ export async function requestOTP(phone: string): Promise<void> {
 
 // Sign up with phone + password + full name
 export async function signup(phone: string, password: string, full_name: string): Promise<AuthState> {
-  const response = await apiCall<{ token: string; refresh_token: string; user: AuthUser }>("/auth/signup", {
+  const response = await apiCall<{ tokens: { access_token: string; refresh_token: string }; user: AuthUser }>("/auth/signup", {
     method: "POST",
     body: JSON.stringify({ phone, password, full_name }),
   });
 
   const state: AuthState = {
-    token: response.token,
-    refreshToken: response.refresh_token,
+    token: response.tokens.access_token,
+    refreshToken: response.tokens.refresh_token,
     userId: response.user.id,
     role: response.user.role as UserRole,
   };
@@ -175,14 +175,14 @@ export async function signup(phone: string, password: string, full_name: string)
 
 // Login with OTP
 export async function loginWithOTP(phone: string, otp: string): Promise<AuthState> {
-  const response = await apiCall<{ token: string; refresh_token: string; user: AuthUser }>("/auth/login", {
+  const response = await apiCall<{ tokens: { access_token: string; refresh_token: string }; user: AuthUser }>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ phone, otp }),
   });
 
   const state: AuthState = {
-    token: response.token,
-    refreshToken: response.refresh_token,
+    token: response.tokens.access_token,
+    refreshToken: response.tokens.refresh_token,
     userId: response.user.id,
     role: response.user.role as UserRole,
   };
@@ -193,14 +193,14 @@ export async function loginWithOTP(phone: string, otp: string): Promise<AuthStat
 
 // Admin login with email/password
 export async function adminLogin(email: string, password: string): Promise<AuthState> {
-  const response = await apiCall<{ token: string; refresh_token: string; user: AuthUser }>("/auth/admin/login", {
+  const response = await apiCall<{ tokens: { access_token: string; refresh_token: string }; user: AuthUser }>("/auth/admin/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
 
   const state: AuthState = {
-    token: response.token,
-    refreshToken: response.refresh_token,
+    token: response.tokens.access_token,
+    refreshToken: response.tokens.refresh_token,
     userId: response.user.id,
     role: response.user.role as UserRole,
   };
@@ -214,16 +214,16 @@ export async function refreshToken(): Promise<AuthState> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) throw new Error("No refresh token");
 
-  const response = await apiCall<{ token: string; refresh_token: string; user: AuthUser }>("/auth/refresh", {
+  const response = await apiCall<{ access_token: string; refresh_token: string }>("/auth/refresh", {
     method: "POST",
     body: JSON.stringify({ refresh_token: refreshToken }),
   });
 
   const state: AuthState = {
-    token: response.token,
+    token: response.access_token,
     refreshToken: response.refresh_token,
-    userId: response.user.id,
-    role: response.user.role as UserRole,
+    userId: getUserId() || "",
+    role: getRole(),
   };
   saveAuth(state);
   return state;
@@ -248,14 +248,14 @@ export async function login(identifier: string, password: string): Promise<AuthS
   }
   
   // Otherwise, treat as phone and use regular login with password
-  const response = await apiCall<{ token: string; refresh_token: string; user: AuthUser }>("/auth/login", {
+  const response = await apiCall<{ tokens: { access_token: string; refresh_token: string }; user: AuthUser }>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ phone: identifier, password }),
   });
 
   const state: AuthState = {
-    token: response.token,
-    refreshToken: response.refresh_token,
+    token: response.tokens.access_token,
+    refreshToken: response.tokens.refresh_token,
     userId: response.user.id,
     role: response.user.role as UserRole,
   };

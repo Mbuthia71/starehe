@@ -17,6 +17,8 @@ type ChatService struct {
 	chatRepo       *repository.ChatRepository
 	connectionRepo  *repository.ConnectionRepository
 	groupRepo      *repository.GroupRepository
+	userRepo       *repository.UserRepository
+	profileRepo    *repository.ProfileRepository
 	redis          *redis.Redis
 	centrifugo     *centrifugo.CentrifugoClient
 	logger         *logger.Logger
@@ -39,6 +41,8 @@ func NewChatService(
 	chatRepo *repository.ChatRepository,
 	connectionRepo *repository.ConnectionRepository,
 	groupRepo *repository.GroupRepository,
+	userRepo *repository.UserRepository,
+	profileRepo *repository.ProfileRepository,
 	redis *redis.Redis,
 	centrifugo *centrifugo.CentrifugoClient,
 	logger *logger.Logger,
@@ -47,6 +51,8 @@ func NewChatService(
 		chatRepo:       chatRepo,
 		connectionRepo:  connectionRepo,
 		groupRepo:      groupRepo,
+		userRepo:       userRepo,
+		profileRepo:    profileRepo,
 		redis:          redis,
 		centrifugo:     centrifugo,
 		logger:         logger,
@@ -246,6 +252,13 @@ func (s *ChatService) SendGroupMessage(ctx context.Context, userID, groupID stri
 	if err != nil {
 		s.logger.Errorf("Failed to create group message: %v", err)
 		return nil, fmt.Errorf("failed to create group message: %w", err)
+	}
+
+	// Enrich message with sender profile data
+	profile, err := s.profileRepo.GetByID(ctx, userID)
+	if err == nil && profile != nil {
+		message.SenderName = &profile.FullName
+		message.SenderAvatar = profile.AvatarURL
 	}
 
 	// Publish to Centrifugo channel

@@ -143,7 +143,7 @@ func (r *PostRepository) DeletePost(ctx context.Context, postID string) error {
 	return nil
 }
 
-// GetPostsByUser retrieves posts by a user
+// GetPostsByUser retrieves posts by a user using offset pagination
 func (r *PostRepository) GetPostsByUser(ctx context.Context, userID string, limit, offset int) ([]*models.Post, error) {
 	var posts []*models.Post
 	query := `
@@ -175,7 +175,60 @@ func (r *PostRepository) GetPostsByUser(ctx context.Context, userID string, limi
 	return posts, nil
 }
 
-// GetFeed retrieves posts for a user's feed
+// GetPostsByUserCursor retrieves posts by a user using cursor-based pagination
+func (r *PostRepository) GetPostsByUserCursor(ctx context.Context, userID string, limit int, cursor *string) ([]*models.Post, *string, error) {
+	var posts []*models.Post
+	
+	query := `
+		SELECT id, user_id, content, media_urls, visibility, created_at, updated_at
+		FROM posts
+		WHERE user_id = $1
+	`
+	
+	args := []interface{}{userID}
+	argCount := 1
+	
+	if cursor != nil {
+		query += fmt.Sprintf(" AND created_at < (SELECT created_at FROM posts WHERE id = $%d)", argCount+1)
+		args = append(args, *cursor)
+		argCount++
+	}
+	
+	query += " ORDER BY created_at DESC"
+	
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argCount+1)
+		args = append(args, limit+1) // Fetch one extra to check if there's more
+		argCount++
+	}
+	
+	err := r.db.SelectContext(ctx, &posts, query, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get posts by user cursor: %w", err)
+	}
+	
+	var nextCursor *string
+	if len(posts) > limit {
+		posts = posts[:limit]
+		nextCursor = &posts[len(posts)-1].ID
+	}
+	
+	// Unmarshal media URLs for each post
+	for _, post := range posts {
+		if post.Content != nil {
+			var mediaURLsJSON []byte
+			mediaQuery := `SELECT media_urls FROM posts WHERE id = $1`
+			err := r.db.GetContext(ctx, &mediaURLsJSON, mediaQuery, post.ID)
+			if err == nil && mediaURLsJSON != nil {
+				json.Unmarshal(mediaURLsJSON, &post.MediaURLs)
+			}
+		}
+	}
+	
+	return posts, nextCursor, nil
+}
+
+// GetFeed retrieves posts for a user's feed using offset pagination
 func (r *PostRepository) GetFeed(ctx context.Context, userID string, limit, offset int) ([]*models.Post, error) {
 	var posts []*models.Post
 	// Get posts from user and their connections
@@ -199,6 +252,53 @@ func (r *PostRepository) GetFeed(ctx context.Context, userID string, limit, offs
 	}
 	
 	return posts, nil
+}
+
+// GetFeedCursor retrieves posts for a user's feed using cursor-based pagination
+func (r *PostRepository) GetFeedCursor(ctx context.Context, userID string, limit int, cursor *string) ([]*models.Post, *string, error) {
+	var posts []*models.Post
+	
+	query := `
+		SELECT DISTINCT p.id, p.user_id, p.content, p.media_urls, p.visibility, p.created_at, p.updated_at
+		FROM posts p
+		WHERE p.user_id = $1
+		   OR p.visibility = 'public'
+		   OR (p.visibility = 'connections' AND EXISTS (
+		       SELECT 1 FROM connections c 
+		       WHERE (c.user_id = $1 AND c.connected_user_id = p.user_id AND c.status = 'accepted')
+		       OR (c.connected_user_id = $1 AND c.user_id = p.user_id AND c.status = 'accepted')
+		   ))
+	`
+	
+	args := []interface{}{userID}
+	argCount := 1
+	
+	if cursor != nil {
+		query += fmt.Sprintf(" AND p.created_at < (SELECT created_at FROM posts WHERE id = $%d)", argCount+1)
+		args = append(args, *cursor)
+		argCount++
+	}
+	
+	query += " ORDER BY p.created_at DESC"
+	
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argCount+1)
+		args = append(args, limit+1) // Fetch one extra to check if there's more
+		argCount++
+	}
+	
+	err := r.db.SelectContext(ctx, &posts, query, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get feed cursor: %w", err)
+	}
+	
+	var nextCursor *string
+	if len(posts) > limit {
+		posts = posts[:limit]
+		nextCursor = &posts[len(posts)-1].ID
+	}
+	
+	return posts, nextCursor, nil
 }
 
 // Comments

@@ -4,17 +4,26 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"starehian-society-platform/internal/middleware"
+	"starehian-society-platform/internal/models"
+	"starehian-society-platform/internal/repository"
 	"starehian-society-platform/internal/services"
 )
 
 type ProfileHandler struct {
 	profileService *services.ProfileService
+	userRepo       *repository.UserRepository
 }
 
-func NewProfileHandler(profileService *services.ProfileService) *ProfileHandler {
+func NewProfileHandler(profileService *services.ProfileService, userRepo *repository.UserRepository) *ProfileHandler {
 	return &ProfileHandler{
 		profileService: profileService,
+		userRepo:       userRepo,
 	}
+}
+
+type ProfileResponse struct {
+	*models.Profile
+	FileNumber *string `json:"file_number,omitempty"`
 }
 
 // GetProfile retrieves a user's profile
@@ -35,7 +44,20 @@ func (h *ProfileHandler) GetProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(profile)
+	// Get user to include file_number
+	user, err := h.userRepo.GetByID(c.Context(), targetID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	response := &ProfileResponse{
+		Profile:    profile,
+		FileNumber: user.FileNumber,
+	}
+
+	return c.JSON(response)
 }
 
 // GetOwnProfile retrieves the current user's profile
@@ -54,7 +76,20 @@ func (h *ProfileHandler) GetOwnProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(profile)
+	// Get user to include file_number
+	user, err := h.userRepo.GetByID(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	response := &ProfileResponse{
+		Profile:    profile,
+		FileNumber: user.FileNumber,
+	}
+
+	return c.JSON(response)
 }
 
 // UpdateProfile updates the current user's profile
@@ -114,8 +149,21 @@ func (h *ProfileHandler) SearchProfiles(c *fiber.Ctx) error {
 		})
 	}
 
+	// Add file_number to each profile
+	var profileResponses []*ProfileResponse
+	for _, profile := range profiles {
+		user, err := h.userRepo.GetByID(c.Context(), profile.UserID)
+		if err != nil {
+			continue // Skip if user not found
+		}
+		profileResponses = append(profileResponses, &ProfileResponse{
+			Profile:    profile,
+			FileNumber: user.FileNumber,
+		})
+	}
+
 	return c.JSON(fiber.Map{
-		"profiles": profiles,
+		"profiles": profileResponses,
 		"limit":    req.Limit,
 		"offset":   req.Offset,
 	})

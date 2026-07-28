@@ -115,65 +115,147 @@ func (r *ProfileRepository) UpdateVisibility(ctx context.Context, userID string,
 	return nil
 }
 
-// Search searches for profiles by various criteria
+// Search searches for profiles by various criteria using offset pagination
 func (r *ProfileRepository) Search(ctx context.Context, searchTerm string, classYear *int, house, location, career string, limit, offset int) ([]*models.Profile, error) {
 	var profiles []*models.Profile
-	
+
 	baseQuery := `
-		SELECT user_id, full_name, bio, avatar_url, cover_url, class_year, house, career, location, 
-		       profile_visibility, contact_visibility, career_visibility, created_at, updated_at
-		FROM profiles
+		SELECT p.user_id, p.full_name, p.bio, p.avatar_url, p.cover_url, p.class_year, p.house, p.career, p.location,
+		       p.profile_visibility, p.contact_visibility, p.career_visibility, p.created_at, p.updated_at,
+		       u.file_number
+		FROM profiles p
+		LEFT JOIN users u ON p.user_id = u.id
 		WHERE 1=1
 	`
-	
+
 	args := []interface{}{}
 	argCount := 1
-	
+
 	if searchTerm != "" {
-		baseQuery += fmt.Sprintf(" AND (full_name ILIKE $%d OR career ILIKE $%d OR location ILIKE $%d)", argCount, argCount, argCount)
-		args = append(args, "%"+searchTerm+"%")
-		argCount++
+		baseQuery += fmt.Sprintf(" AND (p.full_name ILIKE $%d OR p.career ILIKE $%d OR p.location ILIKE $%d)", argCount, argCount+1, argCount+2)
+		args = append(args, "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%")
+		argCount += 3
 	}
-	
+
 	if classYear != nil {
-		baseQuery += fmt.Sprintf(" AND class_year = $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND p.class_year = $%d", argCount)
 		args = append(args, *classYear)
 		argCount++
 	}
-	
+
 	if house != "" {
-		baseQuery += fmt.Sprintf(" AND house = $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND p.house = $%d", argCount)
 		args = append(args, house)
 		argCount++
 	}
-	
+
 	if location != "" {
-		baseQuery += fmt.Sprintf(" AND location ILIKE $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND p.location ILIKE $%d", argCount)
 		args = append(args, "%"+location+"%")
 		argCount++
 	}
-	
+
 	if career != "" {
-		baseQuery += fmt.Sprintf(" AND career ILIKE $%d", argCount)
+		baseQuery += fmt.Sprintf(" AND p.career ILIKE $%d", argCount)
 		args = append(args, "%"+career+"%")
 		argCount++
 	}
-	
-	baseQuery += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argCount, argCount+1)
+
+	baseQuery += fmt.Sprintf(" ORDER BY p.created_at DESC LIMIT $%d OFFSET $%d", argCount, argCount+1)
 	args = append(args, limit, offset)
-	
+
 	query, args, err := sqlx.In(baseQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build query: %w", err)
 	}
-	
+
 	query = r.db.Rebind(query)
 	err = r.db.SelectContext(ctx, &profiles, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search profiles: %w", err)
 	}
-	
+
 	return profiles, nil
+}
+
+// SearchCursor searches for profiles by various criteria using cursor-based pagination
+func (r *ProfileRepository) SearchCursor(ctx context.Context, searchTerm string, classYear *int, house, location, career string, limit int, cursor *string) ([]*models.Profile, *string, error) {
+	var profiles []*models.Profile
+
+	baseQuery := `
+		SELECT p.user_id, p.full_name, p.bio, p.avatar_url, p.cover_url, p.class_year, p.house, p.career, p.location,
+		       p.profile_visibility, p.contact_visibility, p.career_visibility, p.created_at, p.updated_at,
+		       u.file_number
+		FROM profiles p
+		LEFT JOIN users u ON p.user_id = u.id
+		WHERE 1=1
+	`
+
+	args := []interface{}{}
+	argCount := 1
+
+	if searchTerm != "" {
+		baseQuery += fmt.Sprintf(" AND (p.full_name ILIKE $%d OR p.career ILIKE $%d OR p.location ILIKE $%d)", argCount, argCount+1, argCount+2)
+		args = append(args, "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%")
+		argCount += 3
+	}
+
+	if classYear != nil {
+		baseQuery += fmt.Sprintf(" AND p.class_year = $%d", argCount)
+		args = append(args, *classYear)
+		argCount++
+	}
+
+	if house != "" {
+		baseQuery += fmt.Sprintf(" AND p.house = $%d", argCount)
+		args = append(args, house)
+		argCount++
+	}
+
+	if location != "" {
+		baseQuery += fmt.Sprintf(" AND p.location ILIKE $%d", argCount)
+		args = append(args, "%"+location+"%")
+		argCount++
+	}
+
+	if career != "" {
+		baseQuery += fmt.Sprintf(" AND p.career ILIKE $%d", argCount)
+		args = append(args, "%"+career+"%")
+		argCount++
+	}
+
+	if cursor != nil {
+		baseQuery += fmt.Sprintf(" AND p.created_at < (SELECT created_at FROM profiles WHERE user_id = $%d)", argCount)
+		args = append(args, *cursor)
+		argCount++
+	}
+
+	baseQuery += " ORDER BY p.created_at DESC"
+
+	if limit > 0 {
+		baseQuery += fmt.Sprintf(" LIMIT $%d", argCount+1)
+		args = append(args, limit+1) // Fetch one extra to check if there's more
+		argCount++
+	}
+
+	query, args, err := sqlx.In(baseQuery, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build query: %w", err)
+	}
+
+	query = r.db.Rebind(query)
+	err = r.db.SelectContext(ctx, &profiles, query, args...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to search profiles cursor: %w", err)
+	}
+
+	var nextCursor *string
+	if len(profiles) > limit {
+		profiles = profiles[:limit]
+		nextCursor = &profiles[len(profiles)-1].UserID
+	}
+
+	return profiles, nextCursor, nil
 }
 
 // Delete deletes a profile

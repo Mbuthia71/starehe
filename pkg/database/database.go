@@ -19,10 +19,13 @@ func NewDB(databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+	// Configure connection pool for 10,000+ users with 500-1,500 concurrent users
+	// Formula: DB_max_conn >= app_replicas * app_pool_size + workers + margin
+	// Assuming 4 replicas with 50 connections each + 50 for workers = 250 max
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute)
 
 	// Test connection
 	if err := db.Ping(); err != nil {

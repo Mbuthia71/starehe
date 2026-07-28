@@ -15,6 +15,19 @@ module.exports = {
       }
     },
     {
+      name: 'starehe-frontend',
+      script: '/var/www/starehe-frontend/.output/server/index.mjs',
+      cwd: '/var/www/starehe-frontend',
+      env: {
+        PORT: 3001,
+        HOST: '0.0.0.0',
+        NODE_ENV: 'production'
+      },
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 4000
+    },
+    {
       name: 'centrifugo',
       script: 'centrifugo',
       args: '--config=/root/starehian/configs/centrifugo.json',

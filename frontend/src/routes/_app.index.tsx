@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   UserPlus,
@@ -24,19 +25,6 @@ const quickActions = [
   { to: "/statements", label: "Activity", icon: Activity },
 ] as const;
 
-const upcomingEvents = [
-  { title: "Class of 2008 · 20-year reunion planning call", when: "Thu 12 Nov · 7:00 pm EAT" },
-  { title: "OSS Nairobi chapter dinner", when: "Sat 21 Nov · Muthaiga Country Club" },
-  { title: "Mentorship drive · Form 4 leavers", when: "Sat 05 Dec · Starehe Boys' Centre" },
-];
-
-const recentActivity = [
-  { who: "Kevin Mwangi (Griffin, '08)", what: "sent you a connection request", when: "12 min ago", tone: "primary" as const },
-  { who: "Class of 2010", what: "posted a chapter announcement", when: "1 h ago", tone: "muted" as const },
-  { who: "Prof. Wanjiku (Faculty)", what: "commented on your post", when: "3 h ago", tone: "muted" as const },
-  { who: "Brian Otieno (Livingstone, '11)", what: "endorsed you for mentorship", when: "Yesterday", tone: "muted" as const },
-  { who: "OSS Secretariat", what: "shared the November newsletter", when: "2 d ago", tone: "muted" as const },
-];
 
 function Home() {
   const storedMember = getStoredMember();
@@ -48,6 +36,58 @@ function Home() {
   })();
 
   const firstName = storedMember?.firstName || storedMember?.displayName?.split(" ")?.[0] || "Old Starehian";
+
+  const getToken = () => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('oss_token') || '';
+  };
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${getToken()}`,
+  });
+
+  // Fetch pending connections
+  const { data: pendingConnections = [] } = useQuery({
+    queryKey: ['pending-connections'],
+    queryFn: async () => {
+      const res = await fetch('/api/connections?status=pending', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.connections || [];
+    },
+    enabled: !!getToken(),
+  });
+
+  // Fetch upcoming events from groups
+  const { data: upcomingEvents = [] } = useQuery({
+    queryKey: ['upcoming-events'],
+    queryFn: async () => {
+      const res = await fetch('/api/groups?limit=10', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.groups || [];
+    },
+    enabled: !!getToken(),
+  });
+
+  // Fetch recent activity from posts
+  const { data: recentActivity = [] } = useQuery({
+    queryKey: ['recent-activity'],
+    queryFn: async () => {
+      const res = await fetch('/api/posts?limit=10', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.posts || [];
+    },
+    enabled: !!getToken(),
+  });
 
   return (
     <div className="space-y-8">
@@ -161,48 +201,56 @@ function Home() {
       </section>
 
       {/* Pending connection */}
-      <Link to="/loans" className="block">
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="card-elev flex items-center justify-between gap-4 p-5"
-        >
-          <div className="min-w-0">
-            <div className="label-eyebrow">Pending connection</div>
-            <div className="display mt-1 text-xl font-semibold">
-              Kevin Mwangi
+      {pendingConnections.length > 0 && (
+        <Link to="/loans" className="block">
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="card-elev flex items-center justify-between gap-4 p-5"
+          >
+            <div className="min-w-0">
+              <div className="label-eyebrow">Pending connection</div>
+              <div className="display mt-1 text-xl font-semibold">
+                {pendingConnections[0]?.full_name || 'New connection'}
+              </div>
+              <div className="mt-1 truncate text-xs text-muted-foreground">
+                {pendingConnections[0]?.house || 'Unknown House'} · Class of {pendingConnections[0]?.class_year || 'N/A'} · wants to connect
+              </div>
             </div>
-            <div className="mt-1 truncate text-xs text-muted-foreground">
-              Griffin House · Class of 2008 · wants to connect
+            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+              <ChevronRight className="size-4" />
             </div>
-          </div>
-          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-            <ChevronRight className="size-4" />
-          </div>
-        </motion.section>
-      </Link>
+          </motion.section>
+        </Link>
+      )}
 
       {/* Upcoming events */}
       <section>
         <div className="mb-3 flex items-baseline justify-between">
-          <div className="label-eyebrow">Upcoming</div>
+          <div className="label-eyebrow">Chapters</div>
           <Link to="/groups" className="text-xs font-medium text-primary">
             All chapters
           </Link>
         </div>
         <div className="card-elev divide-y divide-border/60 overflow-hidden p-0">
-          {upcomingEvents.map((e) => (
-            <div key={e.title} className="flex items-center gap-3 px-4 py-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                <Calendar className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-foreground">{e.title}</div>
-                <div className="text-[11px] text-muted-foreground">{e.when}</div>
-              </div>
+          {upcomingEvents.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No chapters available yet
             </div>
-          ))}
+          ) : (
+            upcomingEvents.slice(0, 3).map((e) => (
+              <div key={e.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                  <Building2 className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-foreground">{e.name}</div>
+                  <div className="text-[11px] text-muted-foreground">{e.member_count} members</div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -215,23 +263,27 @@ function Home() {
           </Link>
         </div>
         <div className="card-elev divide-y divide-border/60 overflow-hidden p-0">
-          {recentActivity.map((r, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3">
-              <div
-                className={`grid size-10 shrink-0 place-items-center rounded-full ${
-                  r.tone === "primary" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                <MessageSquare className="size-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-foreground">
-                  <span className="font-semibold">{r.who}</span> {r.what}
-                </div>
-                <div className="text-[11px] text-muted-foreground">{r.when}</div>
-              </div>
+          {recentActivity.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No recent activity
             </div>
-          ))}
+          ) : (
+            recentActivity.slice(0, 5).map((r, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                  <MessageSquare className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-foreground">
+                    <span className="font-semibold">{r.full_name || 'Anonymous'}</span> posted an update
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </div>

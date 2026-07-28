@@ -110,6 +110,13 @@ func (s *AuthService) SignupWithPassword(ctx context.Context, phone, fullName, p
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
+	// Generate file number (get next available)
+	fileNumber, err := s.userRepo.GetNextFileNumber(ctx)
+	if err != nil {
+		s.logger.Errorf("Failed to generate file number: %v", err)
+		return nil, fmt.Errorf("failed to generate file number: %w", err)
+	}
+
 	// Create new user
 	hashedPasswordStr := string(hashedPassword)
 	user := &models.User{
@@ -118,6 +125,7 @@ func (s *AuthService) SignupWithPassword(ctx context.Context, phone, fullName, p
 		PasswordHash: &hashedPasswordStr,
 		Role:         string(models.RoleMember),
 		Status:       string(models.StatusActive), // Auto-activate for password signup
+		FileNumber:   &fileNumber,
 	}
 
 	err = s.userRepo.Create(ctx, user)

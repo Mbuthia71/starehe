@@ -17,8 +17,10 @@ import (
 	"starehian-society-platform/internal/chat"
 	"starehian-society-platform/internal/connections"
 	"starehian-society-platform/internal/groups"
+	"starehian-society-platform/internal/metrics"
 	"starehian-society-platform/internal/middleware"
 	"starehian-society-platform/internal/notifications"
+	"starehian-society-platform/internal/points"
 	"starehian-society-platform/internal/posts"
 	"starehian-society-platform/internal/profiles"
 	"starehian-society-platform/internal/repository"
@@ -84,6 +86,7 @@ func main() {
 	notificationRepo := repository.NewNotificationRepository(db)
 	groupRepo := repository.NewGroupRepository(db)
 	businessRepo := repository.NewBusinessRepository(db.DB)
+	pointsRepo := repository.NewPointsRepository(db.DB)
 
 	// Initialize authorization service
 	authzService := middleware.NewAuthorizationService(db)
@@ -103,18 +106,19 @@ func main() {
 	adminService := services.NewAdminService(userRepo, adminRepo, appLogger)
 	connectionService := services.NewConnectionService(connectionRepo, userRepo, appLogger)
 	postService := services.NewPostService(postRepo, appLogger)
-	chatService := services.NewChatService(chatRepo, connectionRepo, groupRepo, redisClient, centrifugoClient, appLogger)
+	chatService := services.NewChatService(chatRepo, connectionRepo, groupRepo, userRepo, profileRepo, redisClient, centrifugoClient, appLogger)
 	groupService := services.NewGroupService(groupRepo, userRepo, appLogger)
 	businessService := services.NewBusinessService(businessRepo, appLogger)
 	analyticsService := services.NewAnalyticsService(db, appLogger)
 	broadcastService := services.NewBroadcastService(userRepo, profileRepo, notificationRepo, appLogger)
+	pointsService := services.NewPointsService(pointsRepo, userRepo, db.DB, appLogger)
 
 	// Initialize storage
 	r2Storage := storage.NewR2Storage(&cfg.R2)
 
 	// Initialize handlers
 	authHandler := auth.NewAuthHandler(authService, rateLimiter)
-	profileHandler := profiles.NewProfileHandler(profileService)
+	profileHandler := profiles.NewProfileHandler(profileService, userRepo)
 	adminHandler := admin.NewAdminHandler(adminService, userRepo, authzService)
 	connectionHandler := connections.NewConnectionHandler(connectionService)
 	postHandler := posts.NewPostHandler(postService)
@@ -125,6 +129,7 @@ func main() {
 	notificationHandler := notifications.NewNotificationHandler(notificationRepo)
 	analyticsHandler := admin.NewAnalyticsHandler(analyticsService)
 	broadcastHandler := admin.NewBroadcastHandler(broadcastService)
+	pointsHandler := points.NewPointsHandler(pointsService)
 
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, appLogger)
@@ -168,6 +173,9 @@ func main() {
 			"redis":    redisStatus,
 		})
 	})
+
+	// Metrics endpoint (no auth required for monitoring)
+	app.Get("/metrics", metrics.Handler())
 
 	// Readiness check
 	app.Get("/ready", func(c *fiber.Ctx) error {
@@ -333,6 +341,19 @@ func main() {
 	notificationRoutes.Post("/read-all", notificationHandler.MarkAllAsRead)
 	notificationRoutes.Delete("/:id", notificationHandler.DeleteNotification)
 
+	// Points routes
+	pointsRoutes := protected.Group("/points")
+	pointsRoutes.Get("/balance", pointsHandler.GetBalance)
+	pointsRoutes.Get("/history", pointsHandler.GetHistory)
+	pointsRoutes.Post("/redeem", pointsHandler.RedeemPoints)
+	pointsRoutes.Get("/redemptions", pointsHandler.GetRedemptions)
+	pointsRoutes.Get("/redemptions/:id", pointsHandler.GetRedemption)
+	pointsRoutes.Post("/referral", pointsHandler.CreateReferral)
+	pointsRoutes.Get("/badges", pointsHandler.GetBadges)
+	pointsRoutes.Get("/tier", pointsHandler.GetTier)
+	pointsRoutes.Get("/campaigns", pointsHandler.GetCampaigns)
+	pointsRoutes.Post("/campaigns/:id/claim", pointsHandler.ClaimCampaign)
+
 	// Admin routes (admin only) with admin rate limiting
 	adminRoutes := protected.Group("/admin")
 	adminRoutes.Use(authMiddleware.RequireAdmin)
@@ -367,6 +388,11 @@ func main() {
 
 	// Broadcasts
 	adminRoutes.Post("/broadcasts", broadcastHandler.SendBroadcast)
+
+	// Points admin routes
+	adminRoutes.Post("/points/adjust", pointsHandler.AdminAdjustPoints)
+	adminRoutes.Post("/points/partners", pointsHandler.AdminCreatePartner)
+	adminRoutes.Get("/points/partners", pointsHandler.AdminGetPartners)
 	// adminRoutes.Post("/bulk/suspend", bulkHandler.BulkSuspend)
 	// adminRoutes.Post("/bulk/activate", bulkHandler.BulkActivate)
 	// adminRoutes.Post("/bulk/verify", bulkHandler.BulkVerify)

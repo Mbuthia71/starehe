@@ -16,17 +16,17 @@ type ProfileService struct {
 }
 
 type UpdateProfileRequest struct {
-	FullName          *string  `json:"full_name,omitempty"`
-	Bio              *string  `json:"bio,omitempty"`
-	AvatarURL        *string  `json:"avatar_url,omitempty"`
-	CoverURL         *string  `json:"cover_url,omitempty"`
-	ClassYear       *int     `json:"class_year,omitempty"`
-	House            *string  `json:"house,omitempty"`
-	Career           *string  `json:"career,omitempty"`
-	Location         *string  `json:"location,omitempty"`
-	ProfileVisibility *string `json:"profile_visibility,omitempty"`
-	ContactVisibility *string `json:"contact_visibility,omitempty"`
-	CareerVisibility  *string `json:"career_visibility,omitempty"`
+	FullName          *string       `json:"full_name,omitempty"`
+	Bio              *string       `json:"bio,omitempty"`
+	AvatarURL        *string       `json:"avatar_url,omitempty"`
+	CoverURL         *string       `json:"cover_url,omitempty"`
+	ClassYear       *int          `json:"class_year,omitempty"`
+	House            *models.House `json:"house,omitempty"`
+	Career           *string       `json:"career,omitempty"`
+	Location         *string       `json:"location,omitempty"`
+	ProfileVisibility *string      `json:"profile_visibility,omitempty"`
+	ContactVisibility *string      `json:"contact_visibility,omitempty"`
+	CareerVisibility  *string      `json:"career_visibility,omitempty"`
 }
 
 type SearchProfilesRequest struct {

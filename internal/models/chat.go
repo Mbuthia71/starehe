@@ -31,6 +31,8 @@ type Message struct {
 	GroupID        *string   `json:"group_id,omitempty" db:"group_id"`
 	RecipientID    *string   `json:"recipient_id,omitempty" db:"recipient_id"`
 	SenderID       string    `json:"sender_id" db:"sender_id"`
+	SenderName     *string   `json:"sender_name,omitempty"`
+	SenderAvatar   *string   `json:"sender_avatar,omitempty"`
 	Content        *string   `json:"content,omitempty" db:"content"`
 	MediaURL       *string   `json:"media_url,omitempty" db:"media_url"`
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`

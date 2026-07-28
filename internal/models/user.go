@@ -11,6 +11,7 @@ type User struct {
 	PasswordHash *string   `json:"-" db:"password_hash"`
 	Role         string    `json:"role" db:"role"`
 	Status       string    `json:"status" db:"status"`
+	FileNumber   *string   `json:"file_number,omitempty" db:"file_number"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }

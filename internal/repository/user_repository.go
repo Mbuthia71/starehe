@@ -20,31 +20,31 @@ func NewUserRepository(db *database.DB) *UserRepository {
 // Create creates a new user
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	query := `
-		INSERT INTO users (id, phone, email, password_hash, role, status)
-		VALUES (:id, :phone, :email, :password_hash, :role, :status)
+		INSERT INTO users (id, phone, email, password_hash, role, status, file_number)
+		VALUES (:id, :phone, :email, :password_hash, :role, :status, :file_number)
 		RETURNING id, created_at, updated_at
 	`
-	
+
 	rows, err := r.db.NamedQueryContext(ctx, query, user)
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 	defer rows.Close()
-	
+
 	if rows.Next() {
 		if err := rows.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt); err != nil {
 			return fmt.Errorf("failed to scan user: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
 // GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
 	var user models.User
-	query := `SELECT id, phone, email, password_hash, role, status, created_at, updated_at FROM users WHERE id = $1`
-	
+	query := `SELECT id, phone, email, password_hash, role, status, file_number, created_at, updated_at FROM users WHERE id = $1`
+
 	err := r.db.GetContext(ctx, &user, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -52,15 +52,15 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 		}
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
-	
+
 	return &user, nil
 }
 
 // GetByPhone retrieves a user by phone number
 func (r *UserRepository) GetByPhone(ctx context.Context, phone string) (*models.User, error) {
 	var user models.User
-	query := `SELECT id, phone, email, password_hash, role, status, created_at, updated_at FROM users WHERE phone = $1`
-	
+	query := `SELECT id, phone, email, password_hash, role, status, file_number, created_at, updated_at FROM users WHERE phone = $1`
+
 	err := r.db.GetContext(ctx, &user, query, phone)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -68,15 +68,15 @@ func (r *UserRepository) GetByPhone(ctx context.Context, phone string) (*models.
 		}
 		return nil, fmt.Errorf("failed to get user by phone: %w", err)
 	}
-	
+
 	return &user, nil
 }
 
 // GetByEmail retrieves a user by email
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
-	query := `SELECT id, phone, email, password_hash, role, status, created_at, updated_at FROM users WHERE email = $1`
-	
+	query := `SELECT id, phone, email, password_hash, role, status, file_number, created_at, updated_at FROM users WHERE email = $1`
+
 	err := r.db.GetContext(ctx, &user, query, email)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -84,7 +84,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		}
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
-	
+
 	return &user, nil
 }
 
@@ -160,7 +160,7 @@ func (r *UserRepository) UpdateRole(ctx context.Context, userID string, role mod
 func (r *UserRepository) List(ctx context.Context, limit, offset int) ([]*models.User, error) {
 	var users []*models.User
 	query := `
-		SELECT id, phone, email, password_hash, role, status, created_at, updated_at 
+		SELECT id, phone, email, password_hash, role, status, file_number, created_at, updated_at 
 		FROM users 
 		ORDER BY created_at DESC 
 		LIMIT $1 OFFSET $2
@@ -219,11 +219,46 @@ func (r *UserRepository) Count(ctx context.Context) (int, error) {
 func (r *UserRepository) CountByStatus(ctx context.Context, status models.UserStatus) (int, error) {
 	var count int
 	query := `SELECT COUNT(*) FROM users WHERE status = $1`
-	
+
 	err := r.db.GetContext(ctx, &count, query, status)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count users by status: %w", err)
 	}
-	
+
 	return count, nil
+}
+
+// GetNextFileNumber generates the next available file number
+func (r *UserRepository) GetNextFileNumber(ctx context.Context) (string, error) {
+	var maxFileNumber sql.NullString
+	query := `SELECT MAX(file_number) FROM users WHERE file_number IS NOT NULL`
+
+	err := r.db.GetContext(ctx, &maxFileNumber, query)
+	if err != nil {
+		return "", fmt.Errorf("failed to get max file number: %w", err)
+	}
+
+	if !maxFileNumber.Valid || maxFileNumber.String == "" {
+		return "00001", nil
+	}
+
+	// Parse current max and increment
+	current := maxFileNumber.String
+	if len(current) != 5 {
+		return "00001", nil
+	}
+
+	// Convert to int, increment, and format back to 5 digits
+	var num int
+	_, err = fmt.Sscanf(current, "%d", &num)
+	if err != nil {
+		return "00001", nil
+	}
+
+	num++
+	if num > 99999 {
+		return "", fmt.Errorf("file number limit reached")
+	}
+
+	return fmt.Sprintf("%05d", num), nil
 }

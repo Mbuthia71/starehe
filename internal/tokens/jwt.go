@@ -1,12 +1,17 @@
 package tokens
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"starehian-society-platform/pkg/config"
+	"starehian-society-platform/pkg/logger"
 )
 
 type JWTService struct {
@@ -14,6 +19,8 @@ type JWTService struct {
 	refreshSecret string
 	accessExpiry  time.Duration
 	refreshExpiry time.Duration
+	redisClient   *redis.Client
+	logger        *logger.Logger
 }
 
 type Claims struct {
@@ -34,6 +41,17 @@ func NewJWTService(cfg *config.JWTConfig) *JWTService {
 		refreshSecret: cfg.RefreshSecret,
 		accessExpiry:  time.Duration(cfg.AccessTokenExpiry) * time.Hour,
 		refreshExpiry: time.Duration(cfg.RefreshTokenExpiry) * 24 * time.Hour,
+	}
+}
+
+func NewJWTServiceWithRedis(cfg *config.JWTConfig, redisClient *redis.Client, appLogger *logger.Logger) *JWTService {
+	return &JWTService{
+		secret:        cfg.Secret,
+		refreshSecret: cfg.RefreshSecret,
+		accessExpiry:  time.Duration(cfg.AccessTokenExpiry) * time.Hour,
+		refreshExpiry: time.Duration(cfg.RefreshTokenExpiry) * 24 * time.Hour,
+		redisClient:   redisClient,
+		logger:        appLogger,
 	}
 }
 
@@ -113,6 +131,14 @@ func (s *JWTService) validateToken(tokenString, secret string) (*Claims, error) 
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+		// Check if user is revoked
+		if s.redisClient != nil {
+			ctx := context.Background()
+			revoked, _ := s.IsUserRevoked(ctx, claims.UserID)
+			if revoked {
+				return nil, errors.New("user tokens have been revoked")
+			}
+		}
 		return claims, nil
 	}
 
@@ -127,6 +153,101 @@ func (s *JWTService) RefreshAccessToken(refreshTokenString string) (*TokenPair, 
 		return nil, fmt.Errorf("invalid refresh token: %w", err)
 	}
 
+	// Check if refresh token is blacklisted
+	if s.redisClient != nil {
+		ctx := context.Background()
+		tokenHash := s.hashToken(refreshTokenString)
+		blacklisted, _ := s.redisClient.Exists(ctx, fmt.Sprintf("blacklist:refresh:%s", tokenHash)).Result()
+		if blacklisted > 0 {
+			return nil, errors.New("refresh token has been revoked")
+		}
+	}
+
 	// Generate new token pair
 	return s.GenerateTokenPair(claims.UserID, claims.Role)
+}
+
+// RevokeToken revokes a token by adding it to the Redis blacklist
+func (s *JWTService) RevokeToken(ctx context.Context, tokenString string, tokenType string) error {
+	if s.redisClient == nil {
+		s.logger.Warn("Redis client not configured, token revocation skipped")
+		return nil
+	}
+
+	tokenHash := s.hashToken(tokenString)
+	var ttl time.Duration
+
+	if tokenType == "access" {
+		ttl = s.accessExpiry
+	} else if tokenType == "refresh" {
+		ttl = s.refreshExpiry
+	} else {
+		return errors.New("invalid token type")
+	}
+
+	key := fmt.Sprintf("blacklist:%s:%s", tokenType, tokenHash)
+	err := s.redisClient.Set(ctx, key, "1", ttl).Err()
+	if err != nil {
+		s.logger.Errorf("Failed to blacklist token: %v", err)
+		return fmt.Errorf("failed to blacklist token: %w", err)
+	}
+
+	s.logger.Infof("Token %s blacklisted", tokenType)
+	return nil
+}
+
+// RevokeUserTokens revokes all tokens for a specific user
+func (s *JWTService) RevokeUserTokens(ctx context.Context, userID string) error {
+	if s.redisClient == nil {
+		s.logger.Warn("Redis client not configured, user token revocation skipped")
+		return nil
+	}
+
+	// Add user to revoked users set with TTL
+	key := fmt.Sprintf("revoked_users:%s", userID)
+	err := s.redisClient.Set(ctx, key, "1", s.refreshExpiry).Err()
+	if err != nil {
+		s.logger.Errorf("Failed to revoke user tokens: %v", err)
+		return fmt.Errorf("failed to revoke user tokens: %w", err)
+	}
+
+	s.logger.Infof("All tokens revoked for user %s", userID)
+	return nil
+}
+
+// IsTokenBlacklisted checks if a token is blacklisted
+func (s *JWTService) IsTokenBlacklisted(ctx context.Context, tokenString string, tokenType string) (bool, error) {
+	if s.redisClient == nil {
+		return false, nil
+	}
+
+	tokenHash := s.hashToken(tokenString)
+	key := fmt.Sprintf("blacklist:%s:%s", tokenType, tokenHash)
+	exists, err := s.redisClient.Exists(ctx, key).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to check blacklist: %w", err)
+	}
+
+	return exists > 0, nil
+}
+
+// IsUserRevoked checks if a user's tokens are revoked
+func (s *JWTService) IsUserRevoked(ctx context.Context, userID string) (bool, error) {
+	if s.redisClient == nil {
+		return false, nil
+	}
+
+	key := fmt.Sprintf("revoked_users:%s", userID)
+	exists, err := s.redisClient.Exists(ctx, key).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to check user revocation: %w", err)
+	}
+
+	return exists > 0, nil
+}
+
+// hashToken creates a SHA256 hash of the token for blacklisting
+func (s *JWTService) hashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
 }

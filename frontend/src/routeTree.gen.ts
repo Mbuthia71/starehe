@@ -25,6 +25,7 @@ import { Route as AppStaffRouteImport } from './routes/_app.staff'
 import { Route as AppSponsorshipsRouteImport } from './routes/_app.sponsorships'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppProductsRouteImport } from './routes/_app.products'
+import { Route as AppPointsRouteImport } from './routes/_app.points'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppMessagesRouteImport } from './routes/_app.messages'
 import { Route as AppLoansRouteImport } from './routes/_app.loans'
@@ -123,6 +124,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
 const AppProductsRoute = AppProductsRouteImport.update({
   id: '/products',
   path: '/products',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPointsRoute = AppPointsRouteImport.update({
+  id: '/points',
+  path: '/points',
   getParentRoute: () => AppRoute,
 } as any)
 const AppOffersRoute = AppOffersRouteImport.update({
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/loans': typeof AppLoansRouteWithChildren
   '/messages': typeof AppMessagesRoute
   '/offers': typeof AppOffersRoute
+  '/points': typeof AppPointsRoute
   '/products': typeof AppProductsRoute
   '/profile': typeof AppProfileRoute
   '/sponsorships': typeof AppSponsorshipsRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/loans': typeof AppLoansRouteWithChildren
   '/messages': typeof AppMessagesRoute
   '/offers': typeof AppOffersRoute
+  '/points': typeof AppPointsRoute
   '/products': typeof AppProductsRoute
   '/profile': typeof AppProfileRoute
   '/sponsorships': typeof AppSponsorshipsRoute
@@ -320,6 +328,7 @@ export interface FileRoutesById {
   '/_app/loans': typeof AppLoansRouteWithChildren
   '/_app/messages': typeof AppMessagesRoute
   '/_app/offers': typeof AppOffersRoute
+  '/_app/points': typeof AppPointsRoute
   '/_app/products': typeof AppProductsRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/sponsorships': typeof AppSponsorshipsRoute
@@ -360,6 +369,7 @@ export interface FileRouteTypes {
     | '/loans'
     | '/messages'
     | '/offers'
+    | '/points'
     | '/products'
     | '/profile'
     | '/sponsorships'
@@ -397,6 +407,7 @@ export interface FileRouteTypes {
     | '/loans'
     | '/messages'
     | '/offers'
+    | '/points'
     | '/products'
     | '/profile'
     | '/sponsorships'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/_app/loans'
     | '/_app/messages'
     | '/_app/offers'
+    | '/_app/points'
     | '/_app/products'
     | '/_app/profile'
     | '/_app/sponsorships'
@@ -583,6 +595,13 @@ declare module '@tanstack/react-router' {
       path: '/products'
       fullPath: '/products'
       preLoaderRoute: typeof AppProductsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/points': {
+      id: '/_app/points'
+      path: '/points'
+      fullPath: '/points'
+      preLoaderRoute: typeof AppPointsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/offers': {
@@ -789,6 +808,7 @@ interface AppRouteChildren {
   AppLoansRoute: typeof AppLoansRouteWithChildren
   AppMessagesRoute: typeof AppMessagesRoute
   AppOffersRoute: typeof AppOffersRoute
+  AppPointsRoute: typeof AppPointsRoute
   AppProductsRoute: typeof AppProductsRoute
   AppProfileRoute: typeof AppProfileRoute
   AppSponsorshipsRoute: typeof AppSponsorshipsRoute
@@ -815,6 +835,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLoansRoute: AppLoansRouteWithChildren,
   AppMessagesRoute: AppMessagesRoute,
   AppOffersRoute: AppOffersRoute,
+  AppPointsRoute: AppPointsRoute,
   AppProductsRoute: AppProductsRoute,
   AppProfileRoute: AppProfileRoute,
   AppSponsorshipsRoute: AppSponsorshipsRoute,

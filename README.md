@@ -41,6 +41,18 @@ A comprehensive alumni community platform built with Go, featuring social networ
 - Reactions (likes) on posts
 - Post visibility controls
 
+### Points & Rewards System
+- Points wallet management per user
+- Points earning through campaigns and referrals
+- Points redemption with partner integrations (e.g., Naivas)
+- Transaction history tracking
+- Referral system with unique codes
+- Gamification badges (verified alumni, super referrer, early adopter, etc.)
+- User tiers (bronze, silver, gold, platinum, diamond)
+- Points campaigns for admins to create earning opportunities
+- Partner management for merchant integrations
+- Daily reconciliation reports
+
 ### Real-time Chat
 - 1:1 direct messaging
 - Group conversations
@@ -95,17 +107,23 @@ starehian-society-platform/
 │   ├── chat/             # Chat handlers and Centrifugo integration
 │   ├── connections/      # Connection handlers
 │   ├── middleware/       # Auth, authorization, rate limiting middleware
-│   ├── models/           # Data models (User, Profile, Post, Chat, etc.)
+│   ├── metrics/          # Prometheus metrics handler
+│   ├── models/           # Data models (User, Profile, Post, Chat, Points, etc.)
 │   ├── notifications/    # Notification handlers
+│   ├── points/           # Points system handlers
 │   ├── posts/            # Post handlers and media upload
 │   ├── profiles/         # Profile handlers
 │   ├── repository/       # Database repositories
-│   └── services/         # Business logic services
+│   ├── services/         # Business logic services
+│   └── tasks/            # Background tasks
 ├── migrations/           # Database migrations
 ├── pkg/                  # Shared packages
+│   ├── cache/            # Cache utilities
+│   ├── centrifugo/       # Centrifugo client
 │   ├── config/           # Configuration
 │   ├── database/         # Database connection
 │   ├── logger/           # Logging
+│   ├── metrics/          # Prometheus metrics
 │   ├── ratelimit/        # Rate limiting
 │   ├── redis/            # Redis client
 │   └── storage/          # Cloudflare R2 storage
@@ -283,6 +301,23 @@ UPDATE users SET role = 'super_admin' WHERE phone = '+254XXXXXXXXX';
 - `POST /api/notifications/read-all` - Mark all as read
 - `DELETE /api/notifications/:id` - Delete notification
 
+### Points (Protected)
+- `GET /api/points/balance` - Get points balance
+- `GET /api/points/history` - Get transaction history
+- `POST /api/points/redeem` - Redeem points
+- `GET /api/points/redemptions` - Get redemption history
+- `GET /api/points/redemptions/:id` - Get redemption details
+- `POST /api/points/referral` - Create referral code
+- `GET /api/points/badges` - Get user badges
+- `GET /api/points/tier` - Get user tier
+- `GET /api/points/campaigns` - Get active campaigns
+- `POST /api/points/campaigns/:id/claim` - Claim campaign points
+
+### Points Admin (Admin Only)
+- `POST /api/admin/points/adjust` - Adjust user points
+- `POST /api/admin/points/partners` - Create partner
+- `GET /api/admin/points/partners` - List partners
+
 ### Admin (Admin Only)
 - `GET /api/admin/users` - List users
 - `GET /api/admin/users/:id` - Get user details
@@ -310,6 +345,7 @@ UPDATE users SET role = 'super_admin' WHERE phone = '+254XXXXXXXXX';
 ### Health & Monitoring
 - `GET /health` - Health check (database, Redis status)
 - `GET /ready` - Readiness check
+- `GET /metrics` - Prometheus metrics
 
 ## Security Features
 

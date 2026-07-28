@@ -12,47 +12,35 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
-import { API_CONFIG } from "../lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/jobs")({
   component: Jobs,
 });
 
-const mockJobs = [
-  {
-    id: "1",
-    title: "Senior Software Engineer",
-    company: "TechCorp Kenya",
-    location: "Nairobi",
-    jobType: "full-time",
-    salaryRange: "KES 150,000 - 250,000",
-    description: "We are looking for an experienced software engineer to join our growing team...",
-    postedAt: "2 days ago",
-    applicationsCount: 12,
-  },
-  {
-    id: "2",
-    title: "Marketing Manager",
-    company: "Brand Solutions Ltd",
-    location: "Remote",
-    jobType: "remote",
-    salaryRange: "KES 80,000 - 120,000",
-    description: "Lead our marketing efforts and help grow our brand presence...",
-    postedAt: "1 week ago",
-    applicationsCount: 8,
-  },
-  {
-    id: "3",
-    title: "Financial Analyst",
-    company: "Invest Africa",
-    location: "Mombasa",
-    jobType: "full-time",
-    salaryRange: "KES 100,000 - 180,000",
-    description: "Analyze financial data and provide insights for investment decisions...",
-    postedAt: "3 days ago",
-    applicationsCount: 15,
-  },
-];
+type Job = {
+  id: string;
+  title: string;
+  description: string;
+  business_id?: string;
+  requirements?: string;
+  responsibilities?: string;
+  location?: string;
+  job_type?: string;
+  salary_range?: string;
+  application_deadline?: string;
+  created_at: string;
+};
+
+const getToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('oss_token') || '';
+};
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${getToken()}`,
+});
 
 function Jobs() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,19 +59,29 @@ function Jobs() {
     application_deadline: "",
   });
 
+  // Fetch jobs from API
+  const { data: jobs = [], isLoading, refetch } = useQuery<Job[]>({
+    queryKey: ['jobs'],
+    queryFn: async () => {
+      const res = await fetch('/api/business/jobs?limit=50&offset=0', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.jobs || data || [];
+    },
+    enabled: !!getToken(),
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_CONFIG.baseUrl}/jobs`, {
+      const response = await fetch('/api/business/jobs', {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: authHeaders(),
         body: JSON.stringify(formData),
       });
 
@@ -105,6 +103,7 @@ function Jobs() {
         salary_range: "",
         application_deadline: "",
       });
+      refetch();
       alert("Job posted successfully!");
     } catch (error: any) {
       setSubmitError(error.message);
@@ -158,59 +157,67 @@ function Jobs() {
 
       {/* Jobs list */}
       <div className="space-y-3">
-        {mockJobs.map((job, i) => (
-          <motion.div
-            key={job.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 * i }}
-          >
-            <Link
-              to="/jobs/$id"
-              params={{ id: job.id }}
-              className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+        {isLoading ? (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Loading jobs...
+          </div>
+        ) : jobs.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            No jobs posted yet. Be the first to post one!
+          </div>
+        ) : (
+          jobs.map((job, i) => (
+            <motion.div
+              key={job.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 * i }}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{job.title}</h3>
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                      {job.jobType}
-                    </span>
+              <Link
+                to="/jobs/$id"
+                params={{ id: job.id }}
+                className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">{job.title}</h3>
+                      {job.job_type && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                          {job.job_type}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      {job.location && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="size-3.5" />
+                          {job.location}
+                        </div>
+                      )}
+                      {job.salary_range && (
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="size-3.5" />
+                          {job.salary_range}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Calendar className="size-3.5" />
+                        {new Date(job.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      {job.description}
+                    </p>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Building2 className="size-3.5" />
-                      {job.company}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="size-3.5" />
-                      {job.location}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="size-3.5" />
-                      {job.salaryRange}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3.5" />
-                      {job.postedAt}
-                    </div>
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {job.description}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Briefcase className="size-3.5" />
-                    {job.applicationsCount} applications
+                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <ArrowUpRight className="size-4" />
                   </div>
                 </div>
-                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <ArrowUpRight className="size-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
+              </Link>
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Create Job Modal */}

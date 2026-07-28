@@ -198,7 +198,7 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, conversationID st
 
 	message := &models.Message{
 		ID:             uuid.New().String(),
-		ConversationID: conversationID,
+		ConversationID: &conversationID,
 		SenderID:       userID,
 		Content:        req.Content,
 		MediaURL:       req.MediaURL,

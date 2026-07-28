@@ -12,50 +12,35 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
-import { API_CONFIG } from "../lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/tenders")({
   component: Tenders,
 });
 
-const mockTenders = [
-  {
-    id: "1",
-    title: "Supply of Office Equipment",
-    organization: "Ministry of Education",
-    location: "Nairobi",
-    budgetRange: "KES 5,000,000 - 7,000,000",
-    submissionDeadline: "2024-08-15",
-    description: "Supply and delivery of office equipment for various educational institutions...",
-    postedAt: "1 week ago",
-    bidsCount: 8,
-    category: "Procurement",
-  },
-  {
-    id: "2",
-    title: "Construction of Classrooms",
-    organization: "County Government of Kiambu",
-    location: "Kiambu",
-    budgetRange: "KES 15,000,000 - 20,000,000",
-    submissionDeadline: "2024-09-01",
-    description: "Construction of 10 classrooms in selected primary schools...",
-    postedAt: "2 weeks ago",
-    bidsCount: 12,
-    category: "Construction",
-  },
-  {
-    id: "3",
-    title: "IT Infrastructure Upgrade",
-    organization: "National Treasury",
-    location: "Nairobi",
-    budgetRange: "KES 8,000,000 - 12,000,000",
-    submissionDeadline: "2024-08-30",
-    description: "Upgrade of IT infrastructure including servers and networking equipment...",
-    postedAt: "3 days ago",
-    bidsCount: 5,
-    category: "IT Services",
-  },
-];
+type Tender = {
+  id: string;
+  title: string;
+  organization_name: string;
+  location?: string;
+  budget_range?: string;
+  submission_deadline: string;
+  description: string;
+  requirements?: string;
+  tender_number?: string;
+  category?: string;
+  created_at: string;
+};
+
+const getToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('oss_token') || '';
+};
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${getToken()}`,
+});
 
 function Tenders() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,19 +58,29 @@ function Tenders() {
     submission_deadline: "",
   });
 
+  // Fetch tenders from API
+  const { data: tenders = [], isLoading, refetch } = useQuery<Tender[]>({
+    queryKey: ['tenders'],
+    queryFn: async () => {
+      const res = await fetch('/api/business/tenders?limit=50&offset=0', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.tenders || data || [];
+    },
+    enabled: !!getToken(),
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_CONFIG.baseUrl}/tenders`, {
+      const response = await fetch('/api/business/tenders', {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: authHeaders(),
         body: JSON.stringify(formData),
       });
 
@@ -106,6 +101,7 @@ function Tenders() {
         category: "",
         submission_deadline: "",
       });
+      refetch();
       alert("Tender submitted successfully!");
     } catch (error: any) {
       setSubmitError(error.message);
@@ -159,59 +155,71 @@ function Tenders() {
 
       {/* Tenders list */}
       <div className="space-y-3">
-        {mockTenders.map((tender, i) => (
-          <motion.div
-            key={tender.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 * i }}
-          >
-            <Link
-              to="/tenders/$id"
-              params={{ id: tender.id }}
-              className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+        {isLoading ? (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Loading tenders...
+          </div>
+        ) : tenders.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            No tenders posted yet. Be the first to post one!
+          </div>
+        ) : (
+          tenders.map((tender, i) => (
+            <motion.div
+              key={tender.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 * i }}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{tender.title}</h3>
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                      {tender.category}
-                    </span>
+              <Link
+                to="/tenders/$id"
+                params={{ id: tender.id }}
+                className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">{tender.title}</h3>
+                      {tender.category && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                          {tender.category}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Building2 className="size-3.5" />
+                        {tender.organization_name}
+                      </div>
+                      {tender.location && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="size-3.5" />
+                          {tender.location}
+                        </div>
+                      )}
+                      {tender.budget_range && (
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="size-3.5" />
+                          {tender.budget_range}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Calendar className="size-3.5" />
+                        Deadline: {new Date(tender.submission_deadline).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      {tender.description}
+                    </p>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Building2 className="size-3.5" />
-                      {tender.organization}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="size-3.5" />
-                      {tender.location}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="size-3.5" />
-                      {tender.budgetRange}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3.5" />
-                      Deadline: {tender.submissionDeadline}
-                    </div>
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {tender.description}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                    <FileText className="size-3.5" />
-                    {tender.bidsCount} bids submitted
+                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <ArrowUpRight className="size-4" />
                   </div>
                 </div>
-                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <ArrowUpRight className="size-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
+              </Link>
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Create Tender Modal */}

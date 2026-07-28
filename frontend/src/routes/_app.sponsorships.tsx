@@ -12,56 +12,34 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
-import { API_CONFIG } from "../lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/sponsorships")({
   component: Sponsorships,
 });
 
-const mockSponsorships = [
-  {
-    id: "1",
-    title: "Education Support Fund",
-    description: "Support bright but needy students from Starehe to pursue higher education...",
-    sponsorshipType: "education",
-    targetAmount: 5000000,
-    currentAmount: 3250000,
-    startDate: "2024-01-01",
-    endDate: "2024-12-31",
-    beneficiary: "Starehe Students",
-    status: "active",
-    postedAt: "6 months ago",
-    contributionsCount: 145,
-  },
-  {
-    id: "2",
-    title: "Sports Equipment Drive",
-    description: "Provide sports equipment for various sports teams at Starehe Boys' Centre...",
-    sponsorshipType: "sports",
-    targetAmount: 2000000,
-    currentAmount: 850000,
-    startDate: "2024-03-01",
-    endDate: "2024-09-30",
-    beneficiary: "Starehe Sports Teams",
-    status: "active",
-    postedAt: "4 months ago",
-    contributionsCount: 67,
-  },
-  {
-    id: "3",
-    title: "Library Renovation",
-    description: "Renovate and modernize the library at Starehe Girls' Centre...",
-    sponsorshipType: "infrastructure",
-    targetAmount: 8000000,
-    currentAmount: 6200000,
-    startDate: "2024-02-01",
-    endDate: "2024-10-31",
-    beneficiary: "Starehe Girls' Centre",
-    status: "active",
-    postedAt: "5 months ago",
-    contributionsCount: 89,
-  },
-];
+type Sponsorship = {
+  id: string;
+  title: string;
+  description: string;
+  sponsorship_type: string;
+  target_amount: number;
+  start_date: string;
+  end_date?: string;
+  beneficiary?: string;
+  image_url?: string;
+  created_at: string;
+};
+
+const getToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('oss_token') || '';
+};
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${getToken()}`,
+});
 
 function Sponsorships() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,19 +57,29 @@ function Sponsorships() {
     image_url: "",
   });
 
+  // Fetch sponsorships from API
+  const { data: sponsorships = [], isLoading, refetch } = useQuery<Sponsorship[]>({
+    queryKey: ['sponsorships'],
+    queryFn: async () => {
+      const res = await fetch('/api/business/sponsorships?limit=50&offset=0', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.sponsorships || data || [];
+    },
+    enabled: !!getToken(),
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_CONFIG.baseUrl}/sponsorships`, {
+      const response = await fetch('/api/business/sponsorships', {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: authHeaders(),
         body: JSON.stringify(formData),
       });
 
@@ -112,6 +100,7 @@ function Sponsorships() {
         beneficiary: "",
         image_url: "",
       });
+      refetch();
       alert("Sponsorship created successfully!");
     } catch (error: any) {
       setSubmitError(error.message);
@@ -168,70 +157,70 @@ function Sponsorships() {
 
       {/* Sponsorships list */}
       <div className="space-y-3">
-        {mockSponsorships.map((sponsorship, i) => (
-          <motion.div
-            key={sponsorship.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 * i }}
-          >
-            <Link
-              to="/sponsorships/$id"
-              params={{ id: sponsorship.id }}
-              className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+        {isLoading ? (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Loading sponsorships...
+          </div>
+        ) : sponsorships.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            No sponsorships posted yet. Be the first to create one!
+          </div>
+        ) : (
+          sponsorships.map((sponsorship, i) => (
+            <motion.div
+              key={sponsorship.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 * i }}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{sponsorship.title}</h3>
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                      {sponsorship.sponsorshipType}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Users className="size-3.5" />
-                      {sponsorship.beneficiary}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3.5" />
-                      Until {sponsorship.endDate}
-                    </div>
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {sponsorship.description}
-                  </p>
-                  
-                  {/* Progress bar */}
-                  <div className="mt-4">
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="font-medium text-foreground">
-                        KES {sponsorship.currentAmount.toLocaleString()}
-                      </span>
-                      <span className="text-muted-foreground">
-                        of KES {sponsorship.targetAmount.toLocaleString()}
+              <Link
+                to="/sponsorships/$id"
+                params={{ id: sponsorship.id }}
+                className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">{sponsorship.title}</h3>
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                        {sponsorship.sponsorship_type}
                       </span>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPercentage(sponsorship.currentAmount, sponsorship.targetAmount)}%` }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
-                        className="h-full bg-primary"
-                      />
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      {sponsorship.beneficiary && (
+                        <div className="flex items-center gap-1">
+                          <Users className="size-3.5" />
+                          {sponsorship.beneficiary}
+                        </div>
+                      )}
+                      {sponsorship.end_date && (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="size-3.5" />
+                          Until {new Date(sponsorship.end_date).toLocaleDateString()}
+                        </div>
+                      )}
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {progressPercentage(sponsorship.currentAmount, sponsorship.targetAmount)}% funded · {sponsorship.contributionsCount} contributions
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      {sponsorship.description}
+                    </p>
+                    
+                    {/* Target amount display */}
+                    <div className="mt-4">
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="font-medium text-foreground">
+                          Target: KES {sponsorship.target_amount.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <ArrowUpRight className="size-4" />
+                  </div>
                 </div>
-                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <ArrowUpRight className="size-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
+              </Link>
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Create Sponsorship Modal */}

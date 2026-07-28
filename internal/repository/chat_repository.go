@@ -197,23 +197,23 @@ func (r *ChatRepository) RemoveConversationMember(ctx context.Context, conversat
 // Messages
 func (r *ChatRepository) CreateMessage(ctx context.Context, message *models.Message) error {
 	query := `
-		INSERT INTO messages (id, conversation_id, sender_id, content, media_url)
-		VALUES (:id, :conversation_id, :sender_id, :content, :media_url)
+		INSERT INTO messages (id, conversation_id, group_id, sender_id, content, media_url)
+		VALUES (:id, :conversation_id, :group_id, :sender_id, :content, :media_url)
 		RETURNING created_at
 	`
-	
+
 	rows, err := r.db.NamedQueryContext(ctx, query, message)
 	if err != nil {
 		return fmt.Errorf("failed to create message: %w", err)
 	}
 	defer rows.Close()
-	
+
 	if rows.Next() {
 		if err := rows.Scan(&message.CreatedAt); err != nil {
 			return fmt.Errorf("failed to scan message: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 

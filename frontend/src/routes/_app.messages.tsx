@@ -22,6 +22,8 @@ type ChatMessage = {
   content?: string;
   media_url?: string;
   created_at: string;
+  delivered?: boolean;
+  read?: boolean;
 };
 
 const getToken = () => {
@@ -53,6 +55,7 @@ function MessagesPage() {
   const [selectedGroup, setSelectedGroup] = useState<Chapter | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const myUserId = getMyUserId();
 
@@ -89,13 +92,43 @@ function MessagesPage() {
     refetchInterval: 2500,
   });
 
+  // Merge optimistic messages with fetched messages
+  const allMessages = [...messages];
+  optimisticMessages.forEach((optMsg) => {
+    if (!allMessages.find((m) => m.id === optMsg.id)) {
+      allMessages.push(optMsg);
+    }
+  });
+  // Sort by created_at
+  allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [allMessages]);
+
+  // Clear optimistic messages when they appear in the real messages
+  useEffect(() => {
+    const messageIds = new Set(messages.map((m) => m.id));
+    setOptimisticMessages((prev) => prev.filter((m) => !messageIds.has(m.id)));
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedGroup) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      sender_id: myUserId,
+      content: newMessage.trim(),
+      created_at: new Date().toISOString(),
+      delivered: false,
+      read: false,
+    };
+
+    // Add optimistic message immediately
+    setOptimisticMessages((prev) => [...prev, optimisticMsg]);
+    setNewMessage('');
 
     setSending(true);
     try {
@@ -103,13 +136,15 @@ function MessagesPage() {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
-          content: newMessage.trim(),
+          content: optimisticMsg.content,
         }),
       });
       if (!res.ok) throw new Error('send failed');
-      setNewMessage('');
+      // The optimistic message will be cleared when the real message appears
     } catch (err) {
       console.error('Failed to send message:', err);
+      // Remove optimistic message on error
+      setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
       alert('Failed to send message. Please try again.');
     } finally {
       setSending(false);
@@ -182,13 +217,14 @@ function MessagesPage() {
                 <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
                   Loading messages...
                 </div>
-              ) : messages.length === 0 ? (
+              ) : allMessages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
                   No messages yet. Say hello!
                 </div>
               ) : (
-                messages.map((msg) => {
+                allMessages.map((msg) => {
                   const mine = msg.sender_id === myUserId;
+                  const isOptimistic = msg.id.startsWith('temp-');
                   return (
                     <div
                       key={msg.id}
@@ -214,7 +250,7 @@ function MessagesPage() {
                           />
                         )}
                         <div
-                          className={`text-[10px] mt-1 ${
+                          className={`text-[10px] mt-1 flex items-center gap-1 ${
                             mine
                               ? 'text-primary-foreground/70'
                               : 'text-muted-foreground'
@@ -224,6 +260,19 @@ function MessagesPage() {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
+                          {mine && (
+                            <span className="flex items-center gap-0.5">
+                              {isOptimistic ? (
+                                <span className="opacity-50">⏳</span>
+                              ) : msg.read ? (
+                                <span className="text-blue-300">✓✓</span>
+                              ) : msg.delivered ? (
+                                <span>✓✓</span>
+                              ) : (
+                                <span>✓</span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

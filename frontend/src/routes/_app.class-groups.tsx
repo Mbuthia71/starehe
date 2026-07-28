@@ -10,59 +10,54 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/class-groups")({
   component: ClassGroups,
 });
 
-const mockClassGroups = [
-  {
-    id: "1",
-    schoolType: "SBC",
-    yearOfCompletion: 2008,
-    className: "Griffin House",
-    description: "Griffin House Class of 2008",
-    memberCount: 45,
-    isActive: true,
-  },
-  {
-    id: "2",
-    schoolType: "SBC",
-    yearOfCompletion: 2010,
-    className: "Livingstone House",
-    description: "Livingstone House Class of 2010",
-    memberCount: 52,
-    isActive: true,
-  },
-  {
-    id: "3",
-    schoolType: "SGC",
-    yearOfCompletion: 2012,
-    className: "Form 4 - 2012",
-    description: "Starehe Girls Centre Class of 2012",
-    memberCount: 38,
-    isActive: true,
-  },
-  {
-    id: "4",
-    schoolType: "SBC",
-    yearOfCompletion: 2015,
-    className: "Patel House",
-    description: "Patel House Class of 2015",
-    memberCount: 48,
-    isActive: true,
-  },
-];
+type ClassGroup = {
+  id: string;
+  school_type: string;
+  year_of_completion: number;
+  class_name: string;
+  description?: string;
+  member_count?: number;
+  created_at: string;
+};
+
+const getToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('oss_token') || '';
+};
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${getToken()}`,
+});
 
 function ClassGroups() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSchool, setSelectedSchool] = useState<"all" | "SBC" | "SGC">("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const filteredGroups = mockClassGroups.filter(
+  // Fetch class groups from API
+  const { data: classGroups = [], isLoading } = useQuery<ClassGroup[]>({
+    queryKey: ['class-groups', selectedSchool],
+    queryFn: async () => {
+      const res = await fetch(`/api/business/class-groups?school_type=${selectedSchool === 'all' ? '' : selectedSchool}`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.class_groups || data || [];
+    },
+    enabled: !!getToken(),
+  });
+
+  const filteredGroups = classGroups.filter(
     (group) =>
-      (selectedSchool === "all" || group.schoolType === selectedSchool) &&
-      (group.className.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (group.class_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         group.description?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -139,47 +134,59 @@ function ClassGroups() {
 
       {/* Class groups list */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {filteredGroups.map((group, i) => (
-          <motion.div
-            key={group.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 * i }}
-          >
-            <Link
-              to="/class-groups/$id"
-              params={{ id: group.id }}
-              className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+        {isLoading ? (
+          <div className="col-span-2 p-4 text-center text-sm text-muted-foreground">
+            Loading class groups...
+          </div>
+        ) : filteredGroups.length === 0 ? (
+          <div className="col-span-2 p-6 text-center text-sm text-muted-foreground">
+            No class groups found. Create one to connect with your classmates!
+          </div>
+        ) : (
+          filteredGroups.map((group, i) => (
+            <motion.div
+              key={group.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 * i }}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                      {group.schoolType}
-                    </span>
-                    <h3 className="text-lg font-semibold text-foreground">{group.className}</h3>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3.5" />
-                      Class of {group.yearOfCompletion}
+              <Link
+                to="/class-groups/$id"
+                params={{ id: group.id }}
+                className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                        {group.school_type}
+                      </span>
+                      <h3 className="text-lg font-semibold text-foreground">{group.class_name}</h3>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Users className="size-3.5" />
-                      {group.memberCount} members
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="size-3.5" />
+                        Class of {group.year_of_completion}
+                      </div>
+                      {group.member_count && (
+                        <div className="flex items-center gap-1">
+                          <Users className="size-3.5" />
+                          {group.member_count} members
+                        </div>
+                      )}
                     </div>
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      {group.description}
+                    </p>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {group.description}
-                  </p>
+                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <ArrowUpRight className="size-4" />
+                  </div>
                 </div>
-                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <ArrowUpRight className="size-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
+              </Link>
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Create Class Group Modal */}

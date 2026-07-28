@@ -12,59 +12,37 @@ import {
   Filter,
 } from "lucide-react";
 import { useState } from "react";
-import { API_CONFIG } from "../lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/offers")({
   component: Offers,
 });
 
-const mockOffers = [
-  {
-    id: "1",
-    title: "20% Off Tech Products",
-    business: "TechStore Kenya",
-    location: "Nairobi",
-    discountPercentage: 20,
-    originalPrice: 5000,
-    offerPrice: 4000,
-    validFrom: "2024-07-20",
-    validUntil: "2024-08-20",
-    description: "Get 20% off on all tech products including laptops, phones, and accessories...",
-    isExclusive: false,
-    postedAt: "2 days ago",
-    redemptionsCount: 45,
-  },
-  {
-    id: "2",
-    title: "Buy 1 Get 1 Free Coffee",
-    business: "Java House",
-    location: "Multiple Locations",
-    discountPercentage: 50,
-    originalPrice: 500,
-    offerPrice: 250,
-    validFrom: "2024-07-15",
-    validUntil: "2024-07-31",
-    description: "Buy one coffee and get another one absolutely free at any Java House location...",
-    isExclusive: true,
-    postedAt: "1 week ago",
-    redemptionsCount: 120,
-  },
-  {
-    id: "3",
-    title: "15% Off Gym Membership",
-    business: "FitLife Gym",
-    location: "Westlands",
-    discountPercentage: 15,
-    originalPrice: 8000,
-    offerPrice: 6800,
-    validFrom: "2024-07-10",
-    validUntil: "2024-09-10",
-    description: "Get 15% off on monthly gym membership plans at FitLife Gym Westlands...",
-    isExclusive: false,
-    postedAt: "3 days ago",
-    redemptionsCount: 28,
-  },
-];
+type Offer = {
+  id: string;
+  title: string;
+  description: string;
+  business_id?: string;
+  discount_percentage?: number;
+  original_price?: number;
+  offer_price?: number;
+  valid_from: string;
+  valid_until: string;
+  terms_conditions?: string;
+  image_url?: string;
+  is_exclusive: boolean;
+  created_at: string;
+};
+
+const getToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('oss_token') || '';
+};
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${getToken()}`,
+});
 
 function Offers() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,19 +63,29 @@ function Offers() {
     is_exclusive: false,
   });
 
+  // Fetch offers from API
+  const { data: offers = [], isLoading, refetch } = useQuery<Offer[]>({
+    queryKey: ['offers'],
+    queryFn: async () => {
+      const res = await fetch('/api/business/offers?limit=50&offset=0', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.offers || data || [];
+    },
+    enabled: !!getToken(),
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_CONFIG.baseUrl}/offers`, {
+      const response = await fetch('/api/business/offers', {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: authHeaders(),
         body: JSON.stringify(formData),
       });
 
@@ -121,6 +109,7 @@ function Offers() {
         image_url: "",
         is_exclusive: false,
       });
+      refetch();
       alert("Offer posted successfully!");
     } catch (error: any) {
       setSubmitError(error.message);
@@ -174,71 +163,71 @@ function Offers() {
 
       {/* Offers list */}
       <div className="space-y-3">
-        {mockOffers.map((offer, i) => (
-          <motion.div
-            key={offer.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 * i }}
-          >
-            <Link
-              to="/offers/$id"
-              params={{ id: offer.id }}
-              className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+        {isLoading ? (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Loading offers...
+          </div>
+        ) : offers.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            No offers posted yet. Be the first to post one!
+          </div>
+        ) : (
+          offers.map((offer, i) => (
+            <motion.div
+              key={offer.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 * i }}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{offer.title}</h3>
-                    {offer.isExclusive && (
-                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
-                        Exclusive
-                      </span>
+              <Link
+                to="/offers/$id"
+                params={{ id: offer.id }}
+                className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">{offer.title}</h3>
+                      {offer.is_exclusive && (
+                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
+                          Exclusive
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="size-3.5" />
+                        Valid until {new Date(offer.valid_until).toLocaleDateString()}
+                      </div>
+                    </div>
+                    {offer.discount_percentage && offer.original_price && offer.offer_price && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-lg font-bold text-primary">
+                          <Percent className="size-4" />
+                          {offer.discount_percentage}% OFF
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="line-through text-muted-foreground">
+                            KES {offer.original_price.toLocaleString()}
+                          </span>
+                          <span className="font-semibold text-foreground">
+                            KES {offer.offer_price.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
                     )}
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      {offer.description}
+                    </p>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Building2 className="size-3.5" />
-                      {offer.business}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="size-3.5" />
-                      {offer.location}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3.5" />
-                      Valid until {offer.validUntil}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-lg font-bold text-primary">
-                      <Percent className="size-4" />
-                      {offer.discountPercentage}% OFF
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="line-through text-muted-foreground">
-                        KES {offer.originalPrice.toLocaleString()}
-                      </span>
-                      <span className="font-semibold text-foreground">
-                        KES {offer.offerPrice.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {offer.description}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Tag className="size-3.5" />
-                    {offer.redemptionsCount} redemptions
+                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <ArrowUpRight className="size-4" />
                   </div>
                 </div>
-                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <ArrowUpRight className="size-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
+              </Link>
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Create Offer Modal */}

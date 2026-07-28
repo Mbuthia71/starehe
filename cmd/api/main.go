@@ -13,6 +13,7 @@ import (
 
 	"starehian-society-platform/internal/admin"
 	"starehian-society-platform/internal/auth"
+	"starehian-society-platform/internal/business"
 	"starehian-society-platform/internal/chat"
 	"starehian-society-platform/internal/connections"
 	"starehian-society-platform/internal/groups"
@@ -82,6 +83,7 @@ func main() {
 	chatRepo := repository.NewChatRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
 	groupRepo := repository.NewGroupRepository(db)
+	businessRepo := repository.NewBusinessRepository(db.DB)
 
 	// Initialize authorization service
 	authzService := middleware.NewAuthorizationService(db)
@@ -103,6 +105,7 @@ func main() {
 	postService := services.NewPostService(postRepo, appLogger)
 	chatService := services.NewChatService(chatRepo, connectionRepo, groupRepo, redisClient, centrifugoClient, appLogger)
 	groupService := services.NewGroupService(groupRepo, userRepo, appLogger)
+	businessService := services.NewBusinessService(businessRepo, appLogger)
 	analyticsService := services.NewAnalyticsService(db, appLogger)
 	broadcastService := services.NewBroadcastService(userRepo, profileRepo, notificationRepo, appLogger)
 
@@ -118,6 +121,7 @@ func main() {
 	uploadHandler := posts.NewUploadHandler(r2Storage)
 	chatHandler := chat.NewChatHandler(chatService)
 	groupHandler := groups.NewGroupHandler(groupService)
+	businessHandler := business.NewBusinessHandler(businessService)
 	notificationHandler := notifications.NewNotificationHandler(notificationRepo)
 	analyticsHandler := admin.NewAnalyticsHandler(analyticsService)
 	broadcastHandler := admin.NewBroadcastHandler(broadcastService)
@@ -277,6 +281,49 @@ func main() {
 	groupRoutes.Post("/:id/members", groupHandler.AddMember)
 	groupRoutes.Delete("/:id/members/:memberId", groupHandler.RemoveMember)
 	groupRoutes.Put("/:id/members/:memberId/role", groupHandler.UpdateMemberRole)
+
+	// Business routes
+	businessRoutes := protected.Group("/business")
+	businessRoutes.Post("/listings", businessHandler.CreateBusinessListing)
+	businessRoutes.Get("/listings", businessHandler.ListBusinessListings)
+	businessRoutes.Get("/listings/:id", businessHandler.GetBusinessListing)
+	businessRoutes.Get("/listings/user", businessHandler.GetUserBusinessListings)
+	businessRoutes.Put("/listings/:id", businessHandler.UpdateBusinessListing)
+	businessRoutes.Delete("/listings/:id", businessHandler.DeleteBusinessListing)
+
+	// Job routes
+	businessRoutes.Post("/jobs", businessHandler.CreateJob)
+	businessRoutes.Get("/jobs", businessHandler.ListJobs)
+	businessRoutes.Get("/jobs/:id", businessHandler.GetJob)
+	businessRoutes.Post("/jobs/:id/apply", businessHandler.ApplyForJob)
+	businessRoutes.Get("/jobs/:id/applications", businessHandler.GetJobApplications)
+
+	// Tender routes
+	businessRoutes.Post("/tenders", businessHandler.CreateTender)
+	businessRoutes.Get("/tenders", businessHandler.ListTenders)
+	businessRoutes.Get("/tenders/:id", businessHandler.GetTender)
+	businessRoutes.Post("/tenders/:id/bids", businessHandler.SubmitTenderBid)
+	businessRoutes.Get("/tenders/:id/bids", businessHandler.GetTenderBids)
+
+	// Merchant offer routes
+	businessRoutes.Post("/offers", businessHandler.CreateMerchantOffer)
+	businessRoutes.Get("/offers", businessHandler.ListMerchantOffers)
+	businessRoutes.Get("/offers/:id", businessHandler.GetMerchantOffer)
+
+	// Sponsorship routes
+	businessRoutes.Post("/sponsorships", businessHandler.CreateSponsorship)
+	businessRoutes.Get("/sponsorships", businessHandler.ListSponsorships)
+	businessRoutes.Get("/sponsorships/:id", businessHandler.GetSponsorship)
+	businessRoutes.Post("/sponsorships/:id/contribute", businessHandler.ContributeToSponsorship)
+	businessRoutes.Get("/sponsorships/:id/contributions", businessHandler.GetSponsorshipContributions)
+
+	// Class group routes
+	businessRoutes.Post("/class-groups", businessHandler.CreateClassGroup)
+	businessRoutes.Get("/class-groups", businessHandler.ListClassGroups)
+	businessRoutes.Get("/class-groups/:id", businessHandler.GetClassGroup)
+	businessRoutes.Post("/class-groups/:id/join", businessHandler.JoinClassGroup)
+	businessRoutes.Get("/class-groups/:id/members", businessHandler.GetClassGroupMembers)
+	businessRoutes.Post("/class-groups/:id/leave", businessHandler.LeaveClassGroup)
 
 	// Notification routes
 	notificationRoutes := protected.Group("/notifications")

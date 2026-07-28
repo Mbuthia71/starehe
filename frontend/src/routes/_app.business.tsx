@@ -15,59 +15,37 @@ import {
   Shield,
 } from "lucide-react";
 import { useState } from "react";
-import { API_CONFIG } from "../lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/business")({
   component: Business,
 });
 
-const mockBusinesses = [
-  {
-    id: "1",
-    businessName: "TechVentures Kenya",
-    phoneNumber: "+254 712 345 678",
-    location: "Nairobi",
-    website: "https://techventures.co.ke",
-    description: "Leading software development company specializing in custom solutions for businesses across East Africa...",
-    instagramHandle: "@techventureske",
-    facebookHandle: "TechVentures Kenya",
-    logoUrl: null,
-    isVerified: true,
-    isFeatured: true,
-    status: "active",
-    createdAt: "3 months ago",
-  },
-  {
-    id: "2",
-    businessName: "Savanna Safaris Ltd",
-    phoneNumber: "+254 723 456 789",
-    location: "Nairobi",
-    website: "https://savannasafaris.co.ke",
-    description: "Premium safari tours and wildlife experiences across Kenya's national parks...",
-    instagramHandle: "@savannasafaris",
-    facebookHandle: "Savanna Safaris",
-    logoUrl: null,
-    isVerified: true,
-    isFeatured: false,
-    status: "active",
-    createdAt: "6 months ago",
-  },
-  {
-    id: "3",
-    businessName: "Urban Design Studio",
-    phoneNumber: "+254 734 567 890",
-    location: "Mombasa",
-    website: "https://urbandesign.co.ke",
-    description: "Creative design agency offering branding, web design, and marketing services...",
-    instagramHandle: "@urbandesignstudio",
-    facebookHandle: "Urban Design Studio",
-    logoUrl: null,
-    isVerified: false,
-    isFeatured: false,
-    status: "active",
-    createdAt: "2 months ago",
-  },
-];
+type Business = {
+  id: string;
+  business_name: string;
+  phone_number: string;
+  location: string;
+  website?: string;
+  description: string;
+  instagram_handle?: string;
+  facebook_handle?: string;
+  logo_url?: string;
+  is_verified: boolean;
+  is_featured: boolean;
+  status: string;
+  created_at: string;
+};
+
+const getToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('oss_token') || '';
+};
+
+const authHeaders = () => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${getToken()}`,
+});
 
 function Business() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,19 +62,29 @@ function Business() {
     facebook_handle: "",
   });
 
+  // Fetch businesses from API
+  const { data: businesses = [], isLoading, refetch } = useQuery<Business[]>({
+    queryKey: ['businesses'],
+    queryFn: async () => {
+      const res = await fetch('/api/business/listings?limit=50&offset=0', {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.listings || data || [];
+    },
+    enabled: !!getToken(),
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_CONFIG.baseUrl}/business/listings`, {
+      const response = await fetch('/api/business/listings', {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: authHeaders(),
         body: JSON.stringify(formData),
       });
 
@@ -116,6 +104,7 @@ function Business() {
         instagram_handle: "",
         facebook_handle: "",
       });
+      refetch();
       alert("Business listed successfully!");
     } catch (error: any) {
       setSubmitError(error.message);
@@ -169,72 +158,82 @@ function Business() {
 
       {/* Businesses list */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {mockBusinesses.map((business, i) => (
-          <motion.div
-            key={business.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 * i }}
-          >
-            <Link
-              to="/business/$id"
-              params={{ id: business.id }}
-              className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+        {isLoading ? (
+          <div className="col-span-2 p-4 text-center text-sm text-muted-foreground">
+            Loading businesses...
+          </div>
+        ) : businesses.length === 0 ? (
+          <div className="col-span-2 p-6 text-center text-sm text-muted-foreground">
+            No businesses listed yet. Be the first to list yours!
+          </div>
+        ) : (
+          businesses.map((business, i) => (
+            <motion.div
+              key={business.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 * i }}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{business.businessName}</h3>
-                    {business.isVerified && (
-                      <Star className="size-4 fill-amber-500 text-amber-500" />
-                    )}
-                    {business.isFeatured && (
-                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
-                        Featured
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="size-3.5" />
-                      {business.location}
+              <Link
+                to="/business/$id"
+                params={{ id: business.id }}
+                className="card-elev block p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">{business.business_name}</h3>
+                      {business.is_verified && (
+                        <Star className="size-4 fill-amber-500 text-amber-500" />
+                      )}
+                      {business.is_featured && (
+                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
+                          Featured
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Phone className="size-3.5" />
-                      {business.phoneNumber}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="size-3.5" />
+                        {business.location}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Phone className="size-3.5" />
+                        {business.phone_number}
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                      {business.description}
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      {business.website && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="size-3.5" />
+                          <span className="truncate max-w-[150px]">{business.website}</span>
+                        </div>
+                      )}
+                      {business.instagram_handle && (
+                        <div className="flex items-center gap-1">
+                          <Instagram className="size-3.5" />
+                          {business.instagram_handle}
+                        </div>
+                      )}
+                      {business.facebook_handle && (
+                        <div className="flex items-center gap-1">
+                          <Facebook className="size-3.5" />
+                          <span className="truncate max-w-[100px]">{business.facebook_handle}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {business.description}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    {business.website && (
-                      <div className="flex items-center gap-1">
-                        <Globe className="size-3.5" />
-                        <span className="truncate max-w-[150px]">{business.website}</span>
-                      </div>
-                    )}
-                    {business.instagramHandle && (
-                      <div className="flex items-center gap-1">
-                        <Instagram className="size-3.5" />
-                        {business.instagramHandle}
-                      </div>
-                    )}
-                    {business.facebookHandle && (
-                      <div className="flex items-center gap-1">
-                        <Facebook className="size-3.5" />
-                        <span className="truncate max-w-[100px]">{business.facebookHandle}</span>
-                      </div>
-                    )}
+                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <ArrowUpRight className="size-4" />
                   </div>
                 </div>
-                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <ArrowUpRight className="size-4" />
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
+              </Link>
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Create Business Modal */}
